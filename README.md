@@ -14,7 +14,7 @@ Official PyTorch implementation of the paper:
 Part of this codebase is based on [torch-ngp](https://github.com/ashawkey/torch-ngp) and [MMGeneration](https://github.com/open-mmlab/mmgeneration).
 <br>
 
-https://github.com/Lakonik/Diffusion-NeRF-internal/assets/53893837/53337f0b-aa82-4d0c-a985-fdaeccaf2ef3
+https://github.com/Lakonik/SSDNeRF/assets/53893837/22e7ee6c-7576-44f2-b408-41089180e359
 
 ## Highlights
 

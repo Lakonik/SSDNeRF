@@ -13,6 +13,9 @@ import warnings
 import cv2
 import mmcv
 import torch
+
+torch.backends.cuda.matmul.allow_tf32 = True
+
 from mmcv import Config, DictAction
 from mmcv.runner import get_dist_info, init_dist
 from mmcv.utils import get_git_hash

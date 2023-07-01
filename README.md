@@ -170,7 +170,7 @@ By default, during training or testing, the visualizations will be saved into `.
 A GUI tool is provided for visualizing the results (currently only supports unconditional generation). Run the following command to start the GUI:
 
 ```bash
-python tools/ssdnerf_gui.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT
+python demo/ssdnerf_gui.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT
 ```
 
 ## Citation

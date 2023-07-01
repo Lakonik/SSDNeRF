@@ -136,4 +136,23 @@ def rgetattr(obj, attr, *args):
 
 def rsetattr(obj, attr, val):
     pre, _, post = attr.rpartition('.')
-    return setattr(rgetattr(obj, pre) if pre else obj, post, val)
+    pre = rgetattr(obj, pre) if pre else obj
+    if isinstance(pre, MMDistributedDataParallel):
+        pre = pre.module
+    return setattr(pre, post, val)
+
+
+def rhasattr(obj, attr):
+    pre, _, post = attr.rpartition('.')
+    pre = rgetattr(obj, pre) if pre else obj
+    if isinstance(pre, MMDistributedDataParallel):
+        pre = pre.module
+    return hasattr(pre, post)
+
+
+def rdelattr(obj, attr):
+    pre, _, post = attr.rpartition('.')
+    pre = rgetattr(obj, pre) if pre else obj
+    if isinstance(pre, MMDistributedDataParallel):
+        pre = pre.module
+    return delattr(pre, post)

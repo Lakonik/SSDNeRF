@@ -195,6 +195,7 @@ class GaussianDiffusion(nn.Module):
             grad_enabled_prev = torch.is_grad_enabled()
             torch.set_grad_enabled(True)
 
+        # Todo: set denoising requires_grad to False
         denoising_output = self.denoising(x_t, t, concat_cond=concat_cond)
 
         if self.denoising_mean_mode.upper() == 'EPS':

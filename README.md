@@ -112,9 +112,9 @@ Finally you should have the following folder tree:
 For FID and KID evaluation, run the following commands to extract the Inception features of the real images. (This script will use all the available GPUs on your machine, so remember to set `CUDA_VISIBLE_DEVICES`.)
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python tools/inception_stat.py configs/ssdnerf_cars_uncond.py
-CUDA_VISIBLE_DEVICES=0 python tools/inception_stat.py configs/ssdnerf_chairs_recons1v.py
-CUDA_VISIBLE_DEVICES=0 python tools/inception_stat.py configs/ssdnerf_abotables_uncond.py
+CUDA_VISIBLE_DEVICES=0 python tools/inception_stat.py configs/paper_cfgs/ssdnerf_cars_uncond.py
+CUDA_VISIBLE_DEVICES=0 python tools/inception_stat.py configs/paper_cfgs/ssdnerf_chairs_recons1v.py
+CUDA_VISIBLE_DEVICES=0 python tools/inception_stat.py configs/paper_cfgs/ssdnerf_abotables_uncond.py
 ```
 
 ### Todos

@@ -94,6 +94,11 @@ test_cfg = dict(
     lr_scheduler=dict(type='ExponentialLR', gamma=0.998),  # decay schedule of finetuning lr
     langevin_steps=5,  # langevin inner iterations
     langevin_delta=0.4,  # δ (langevin step size)
+    # uncomment the following lines to save NeRFs and meshes
+    # save_dir=work_dir + '/save',
+    # save_mesh=True,
+    # mesh_resolution=256,
+    # mesh_threshold=10,
 )
 
 optimizer = dict(

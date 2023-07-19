@@ -90,7 +90,12 @@ test_cfg = dict(
     n_inverse_steps=25,  # K_out (finetuning outer loop iterations)
     extra_scene_step=3,  # -1 + K_in (finetuning inner loop iterations)
     optimizer=dict(type='Adam', lr=0.005, weight_decay=0.),  # finetuning triplane lr
-    lr_scheduler=dict(type='ExponentialLR', gamma=0.998)  # decay schedule of finetuning lr
+    lr_scheduler=dict(type='ExponentialLR', gamma=0.998),  # decay schedule of finetuning lr
+    # uncomment the following lines to save NeRFs and meshes
+    # save_dir=work_dir + '/save',
+    # save_mesh=True,
+    # mesh_resolution=256,
+    # mesh_threshold=10,
 )
 
 optimizer = dict(

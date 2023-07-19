@@ -209,11 +209,23 @@ python test.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT --gpu-ids 0 1  # you can spec
 ```
 Some trained models can be downloaded from [here](https://drive.google.com/drive/folders/13z4C13TsofPkBuqMqQjRp5yDck7CjCiZ?usp=sharing) for testing.
 
+To save the sampled NeRFs and extracted meshes, uncomment (or add) these lines in the `test_cfg` dict of the config file:
+
+```python
+    save_dir=work_dir + '/save',
+    save_mesh=True,
+    mesh_resolution=256,
+    mesh_threshold=10,
+```
+
+All results will be saved into `./work_dirs/<cfg name>/save`.
+You can then open the saved `.pth` NeRF scenes using the GUI tool `demo/ssdnerf_gui.py` (see below), and the `.stl` meshes using any mesh viewer.
+
 ## Visualization
 
 By default, during training or testing, the visualizations will be saved into `./work_dirs`. 
 
-A GUI tool is provided for visualizing the results (currently only supports unconditional generation). Run the following command to start the GUI:
+A GUI tool is provided for visualizing the results (currently only supports unconditional generation or loading saved `.pth` NeRF scenes). Run the following command to start the GUI:
 
 ```bash
 python demo/ssdnerf_gui.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT
@@ -228,6 +240,6 @@ If you find this project useful in your research, please consider citing:
     title={Single-Stage Diffusion NeRF: A Unified Approach to 3D Generation and Reconstruction}, 
     author={Hansheng Chen and Jiatao Gu and Anpei Chen and Wei Tian and Zhuowen Tu and Lingjie Liu and Hao Su},
     year={2023},
-    booktitle = {ICCV},
+    booktitle={ICCV}
 }
 ```

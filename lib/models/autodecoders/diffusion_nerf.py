@@ -457,6 +457,11 @@ class DiffusionNeRF(MultiSceneNeRF):
         save_dir = self.test_cfg.get('save_dir', None)
         if save_dir is not None:
             self.save_scene(save_dir, code, density_grid, density_bitfield, data['scene_name'])
+            save_mesh = self.test_cfg.get('save_mesh', False)
+            if save_mesh:
+                mesh_resolution = self.test_cfg.get('mesh_resolution', 256)
+                mesh_threshold = self.test_cfg.get('mesh_threshold', 10)
+                self.save_mesh(save_dir, decoder, code, data['scene_name'], mesh_resolution, mesh_threshold)
 
         # ==== outputs ====
         outputs_dict = dict(

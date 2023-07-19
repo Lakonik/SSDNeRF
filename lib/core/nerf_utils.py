@@ -95,14 +95,14 @@ def _extract_geometry(bound_min, bound_max, resolution, threshold, query_func):
     return vertices, triangles
 
 
-def extract_geometry(decoder, code, resolution=256, threshold=10):
+def extract_geometry(decoder, code_single, resolution=256, threshold=10):
 
     def query_func(pts):
         with torch.no_grad():
-            pts = pts.to(code.device)[None]
+            pts = pts.to(code_single.device)[None]
             sigma = decoder.point_density_decode(
                 pts,
-                code[None])[0].flatten()
+                code_single[None])[0].flatten()
             out_mask = (pts.squeeze(0) < decoder.aabb[:3]).any(dim=-1) | (pts.squeeze(0) > decoder.aabb[3:]).any(dim=-1)
             sigma.masked_fill_(out_mask, 0)
         return sigma

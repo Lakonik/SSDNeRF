@@ -81,6 +81,11 @@ test_cfg = dict(
     clip_range=[-2, 2],
     density_thresh=0.1,
     # max_render_rays=16 * 128 * 128,  # uncomment this line to use less rendering memory
+    # uncomment the following lines to save NeRFs and meshes
+    # save_dir=work_dir + '/save',
+    # save_mesh=True,
+    # mesh_resolution=256,
+    # mesh_threshold=10,
 )
 
 optimizer = dict(

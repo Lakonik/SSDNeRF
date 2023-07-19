@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import lpips
 import mmcv
+import trimesh
 
 from copy import deepcopy
 from glob import glob
@@ -15,7 +16,7 @@ from mmcv.runner import load_checkpoint
 from mmgen.models.builder import MODULES, build_module
 from mmgen.models.architectures.common import get_module_device
 
-from ...core import custom_meshgrid, eval_psnr, eval_ssim_skimage, reduce_mean, rgetattr, rsetattr
+from ...core import custom_meshgrid, eval_psnr, eval_ssim_skimage, reduce_mean, rgetattr, rsetattr, extract_geometry
 from lib.ops import morton3D, morton3D_invert, packbits
 
 LPIPS_BS = 32
@@ -212,6 +213,18 @@ class BaseNeRF(nn.Module):
                     density_grid=density_grid.data[scene_id].cpu(),
                     density_bitfield=density_bitfield.data[scene_id].cpu()))
             torch.save(results, os.path.join(save_dir, scene_name_single) + '.pth')
+
+    @staticmethod
+    def save_mesh(save_dir, decoder, code, scene_name, mesh_resolution, mesh_threshold):
+        os.makedirs(save_dir, exist_ok=True)
+        for code_single, scene_name_single in zip(code, scene_name):
+            vertices, triangles = extract_geometry(
+                decoder,
+                code_single,
+                mesh_resolution,
+                mesh_threshold)
+            mesh = trimesh.Trimesh(vertices, triangles, process=False)
+            mesh.export(os.path.join(save_dir, scene_name_single) + '.stl')
 
     def get_init_code_(self, num_scenes, device=None):
         code_ = torch.empty(

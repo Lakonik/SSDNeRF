@@ -63,7 +63,7 @@ pip install -v -e .
 cd ..
 
 # Clone this repo and install other dependencies
-git clone <this repo> && cd <repo folder> && git checkout ssdnerf-dev
+git clone <this repo> && cd <repo folder>
 pip install -r requirements.txt
 ```
 

@@ -1,6 +1,6 @@
 # SSDNeRF
 
-Official PyTorch implementation of the paper:
+Official PyTorch implementation of the ICCV 2023 paper:
 
 **Single-Stage Diffusion NeRF: A Unified Approach to 3D Generation and Reconstruction**
 <br>
@@ -123,7 +123,7 @@ CUDA_VISIBLE_DEVICES=0 python tools/inception_stat.py configs/paper_cfgs/ssdnerf
 
 ## About the configs
 
-Naming convention:
+### Naming convention
     
 ```
 ssdnerf_cars3v_uncond
@@ -137,10 +137,56 @@ stage2_cars_recons1v
    └── training method: stage 2 of two-stage training
 ```
 
+### Models in the main paper
+
+| Config                                                                     |                                           Checkpoint                                            | Iters  |     FID      | LPIPS | Comments                                                                                                                                                        |
+|:---------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------:|:------:|:------------:|:-----:|:----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [ssdnerf_cars_uncond](configs/paper_cfgs/ssdnerf_cars_uncond.py)           | [gdrive](https://drive.google.com/file/d/1tZMzfauuB7mo3vc_ojNoiHS5kC4DfBF6/view?usp=drive_link) |   1M   | 11.08 ± 1.11 |   -   |                                                                                                                                                                 |
+| [ssdnerf_abotables_uncond](configs/paper_cfgs/ssdnerf_abotables_uncond.py) | [gdrive](https://drive.google.com/file/d/1AnVELtHRxBE8Hd-KssYlOcQMpNbzD68M/view?usp=drive_link) |   1M   | 14.27 ± 0.66 |   -   |                                                                                                                                                                 |
+| [ssdnerf_cars_recons1v](configs/paper_cfgs/ssdnerf_cars_recons1v.py)       | [gdrive](https://drive.google.com/file/d/1hsnUW7dZ45aPqXxtOVrOSBl1gQA_8wH-/view?usp=drive_link) |  80K   |    16.39     | 0.078 |                                                                                                                                                                 |
+| [ssdnerf_chairs_recons1v](configs/paper_cfgs/ssdnerf_chairs_recons1v.py)   | [gdrive](https://drive.google.com/file/d/1ZvU361JyuIKp6dmhPivdB-18srh5xbsI/view?usp=drive_link) |  80K   |    10.13     | 0.067 |                                                                                                                                                                 |
+| [ssdnerf_cars3v_uncond_1m](configs/paper_cfgs/ssdnerf_cars3v_uncond_1m.py) |                                                                                                 |   1M   |              |   -   | The first half of training before resetting the triplanes.                                                                                                      |
+| [ssdnerf_cars3v_uncond_2m](configs/paper_cfgs/ssdnerf_cars3v_uncond_2m.py) | [gdrive](https://drive.google.com/file/d/1DxpiPAa-pPxjrxhK_DXgJvk2JOgd-WWv/view?usp=drive_link) |   1M   | 19.04 ± 1.10 |   -   | The second half of training after resetting the triplanes (requires training [ssdnerf_cars3v_uncond_1m](configs/paper_cfgs/ssdnerf_cars3v_uncond_1m.py) first). |
+| [ssdnerf_cars3v_recons1v](configs/paper_cfgs/ssdnerf_cars3v_recons1v.py)   |                                                                                                 |  80K   |              | 0.106 |                                                                                                                                                                 |
+| [stage1_cars_recons16v](configs/paper_cfgs/stage1_cars_recons16v.py)       |                                                                                                 |  400K  |              |       | Ablation study, NeRF reconstruction stage.                                                                                                                      |
+| [stage2_cars_uncond](configs/paper_cfgs/stage2_cars_uncond.py)             |                                                                                                 |   1M   | 16.33 ± 0.93 |   -   | Ablation study, diffusion stage (requires training [stage1_cars_recons16v](configs/paper_cfgs/stage1_cars_recons16v.py) first).                                 |
+| [stage2_cars_recons1v](configs/paper_cfgs/stage2_cars_recons1v.py)         |                                                                                                 |  80K   |    20.97     | 0.090 | Ablation study, diffusion stage (requires training [stage1_cars_recons16v](configs/paper_cfgs/stage1_cars_recons16v.py) first).                                 |
+
+### Models in the supplementary material
+
+| Config                                                                            | Iters |  FID  | LPIPS | Comments                                                                                                                                        |
+|:----------------------------------------------------------------------------------|:-----:|:-----:|:-----:|:------------------------------------------------------------------------------------------------------------------------------------------------|
+| [ssdnerf_cars_reconskitti](configs/supp_cfgs/ssdnerf_cars_reconskitti.py)         |  80K  |   -   |   -   | Same model as [ssdnerf_cars_recons1v](configs/paper_cfgs/ssdnerf_cars_recons1v.py) except for being tested on real images of the KITTI dataset. |
+| [ssdnerf_cars_recons1v_notanh](configs/supp_cfgs/ssdnerf_cars_recons1v_notanh.py) |  80K  | 16.34 | 0.077 | Without tanh latent code activation.                                                                                                            |                                                                                                                       |                                                                                                                                             |
+| [ssdnerf_cars_recons1v_noreg](configs/supp_cfgs/ssdnerf_cars_recons1v_noreg.py)   |  80K  | 16.62 | 0.077 | Without L2 latent code regularization.                                                                                                          |
+
+### New models in this repository
+
+The new models feature **improved implementations**, including the following changes:
+
+- Use `NormalizedTanhCode` instead of `TanhCode` activation, which helps stablizing the scale (std) of the latent codes. Scale normalization is no longer required in the DDPM MSE loss. Latent code lr is rescaled accordingly.
+- Remove L2 latent code regularizaiton.
+- Disable U-Net dropout in `recons` models.
+- `uncond` and `recons` models are now exactly the same except for training schedules and testing configs.
+- Enable new features such as 16-bit caching and tiled triplanes.
+
+*Note: It is highly recommended to start with these new models if you want to train custom models. The original models in the paper are retained only for reproducibility.*
+
+| Config                                                                                            | Iters | Comments                                                                                                                                                                                  |
+|:--------------------------------------------------------------------------------------------------|:-----:|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [ssdnerf_cars_uncond_16bit](configs/new_cfgs/ssdnerf_cars_uncond_16bit.py)                        |  1M   | Enable 16-bit caching. Should yield similar results to [ssdnerf_cars_uncond](configs/paper_cfgs/ssdnerf_cars_uncond.py).                                                                  |
+| [ssdnerf_cars_recons1v_16bit](configs/new_cfgs/ssdnerf_cars_recons1v_16bit.py)                    |  60K  | Enable 16-bit caching. Should yield similar results to [ssdnerf_cars_recons1v](configs/paper_cfgs/ssdnerf_cars_recons1v.py).                                                              |                                                                                               |                                                                                                                       |                                                                                                                                             |
+| [ssdnerf_cars_recons1v_tiled](configs/new_cfgs/ssdnerf_cars_recons1v_tiled.py)                    | 100K  | Use tiled (rollout) triplane layout. Tiled triplanes could have resulted in higher computation cost, but in this model the UNet channels have been reduced to compensate for the runtime. |
+| [stage1_cars_recons16v_16bit](configs/new_cfgs/stage1_cars_recons16v_16bit)                       | 400K  | Enable 16-bit caching. Should yield similar results to [stage1_cars_recons16v](configs/paper_cfgs/stage1_cars_recons16v.py).                                                              |
+| [stage1_cars_recons16v_16bit_filesystem](configs/new_cfgs/stage1_cars_recons16v_16bit_filesystem) | 400K  | Same as [stage1_cars_recons16v_16bit](configs/new_cfgs/stage1_cars_recons16v_16bit) but caching on filesystem, in case your RAM is full. Not recommended due to slow I/O on hard drives.  |
+
+### Unused features in this codebase
+
+- This codebase supports concat-based image conditioning, although it's not used in the above models.
+
 ### Todos
 
-- [ ] Add descriptions for each config file.
-- [ ] Add multi-view testing configs.
+- [ ] Add multi-view reconstruction testing configs.
 
 ## Training
 
@@ -150,7 +196,7 @@ Run the following command to train a model:
 python train.py /PATH/TO/CONFIG --gpu-ids 0 1
 ```
 
-Note that the total batch size is determined by the number of GPUs you specified. All our models are trained using 2 GPUs.
+Note that the total batch size is determined by the number of GPUs you specified. All our models are trained using 2 RTX 3090 (24G) GPUs.
 
 Since we adopt the density-based NeRF pruning trategy in [torch-ngp](https://github.com/ashawkey/torch-ngp), training would start slow and become faster later, so the initial esitamtion of remaining time is usually over twice as much as the actual training time.
 
@@ -178,12 +224,10 @@ python demo/ssdnerf_gui.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT
 If you find this project useful in your research, please consider citing:
 
 ```
-@misc{ssdnerf,
+@inproceedings{ssdnerf,
     title={Single-Stage Diffusion NeRF: A Unified Approach to 3D Generation and Reconstruction}, 
     author={Hansheng Chen and Jiatao Gu and Anpei Chen and Wei Tian and Zhuowen Tu and Lingjie Liu and Hao Su},
     year={2023},
-    archivePrefix={arXiv},
-    eprint={2304.06714},
-    primaryClass={cs.CV}
+    booktitle = {ICCV},
 }
 ```

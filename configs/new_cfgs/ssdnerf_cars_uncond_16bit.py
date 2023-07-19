@@ -129,8 +129,7 @@ evaluation = [
         viz_dir=work_dir + '/viz_uncond',
         save_best_ckpt=False)]
 
-total_iters = 500000
-# total_iters = 600000
+total_iters = 1000000
 log_config = dict(
     interval=50,
     hooks=[

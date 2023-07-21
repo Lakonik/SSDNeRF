@@ -86,7 +86,9 @@ Unzip them to `./data/shapenet`.
 
 Download `abo_tables.zip` from [here](https://drive.google.com/file/d/1lzw3uYbpuCxWBYYqYyL4ZEFomBOUN323/view?usp=share_link). Unzip it to `./data/abo`. For convenience I have converted the ABO dataset into PixelNeRF's SRN format.
 
-Finally you should have the following folder tree:
+If you want to try single-view reconstruction on the real KITTI Cars dataset, please download the official [KITTI 3D object dataset](http://www.cvlibs.net/datasets/kitti/eval_object.php?obj_benchmark=3d), including [left color images](http://www.cvlibs.net/download.php?file=data_object_image_2.zip), [calibration files](http://www.cvlibs.net/download.php?file=data_object_calib.zip), [training labels](http://www.cvlibs.net/download.php?file=data_object_label_2.zip), and [instance segmentations](https://github.com/HeylenJonas/KITTI3D-Instance-Segmentation-Devkit).
+
+Extract the downloaded archives according to the following folder tree (or use symlinks).
 
 ```
 ./
@@ -99,9 +101,15 @@ Finally you should have the following folder tree:
 │   │   ├── chairs_test/
 │   │   ├── chairs_train/
 │   │   └── chairs_val/
-│   └── abo/
-│       ├── tables_train/
-│       └── tables_test/
+│   ├── abo/
+│   │   ├── tables_train/
+│   │   └── tables_test/
+│   └── kitti/
+│       └── training/
+│           ├── calib/
+│           ├── image_2/
+│           ├── label_2/
+|           └── instance_2/
 ├── demo/
 ├── lib/
 ├── tools/
@@ -117,9 +125,11 @@ CUDA_VISIBLE_DEVICES=0 python tools/inception_stat.py configs/paper_cfgs/ssdnerf
 CUDA_VISIBLE_DEVICES=0 python tools/inception_stat.py configs/paper_cfgs/ssdnerf_abotables_uncond.py
 ```
 
-### Todos
+For KITTI Cars preprocessing, run the following command.
 
-- [ ] Add KITTI Cars dataset preparation instructions.
+```bash
+python tools/kitti_preproc.py
+```
 
 ## About the configs
 
@@ -172,13 +182,13 @@ The new models feature **improved implementations**, including the following cha
 
 *Note: It is highly recommended to start with these new models if you want to train custom models. The original models in the paper are retained only for reproducibility.*
 
-| Config                                                                                            | Iters | Comments                                                                                                                                                                                  |
-|:--------------------------------------------------------------------------------------------------|:-----:|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [ssdnerf_cars_uncond_16bit](configs/new_cfgs/ssdnerf_cars_uncond_16bit.py)                        |  1M   | Enable 16-bit caching. Should yield similar results to [ssdnerf_cars_uncond](configs/paper_cfgs/ssdnerf_cars_uncond.py).                                                                  |
-| [ssdnerf_cars_recons1v_16bit](configs/new_cfgs/ssdnerf_cars_recons1v_16bit.py)                    |  60K  | Enable 16-bit caching. Should yield similar results to [ssdnerf_cars_recons1v](configs/paper_cfgs/ssdnerf_cars_recons1v.py).                                                              |                                                                                               |                                                                                                                       |                                                                                                                                             |
-| [ssdnerf_cars_recons1v_tiled](configs/new_cfgs/ssdnerf_cars_recons1v_tiled.py)                    | 100K  | Use tiled (rollout) triplane layout. Tiled triplanes could have resulted in higher computation cost, but in this model the UNet channels have been reduced to compensate for the runtime. |
-| [stage1_cars_recons16v_16bit](configs/new_cfgs/stage1_cars_recons16v_16bit)                       | 400K  | Enable 16-bit caching. Should yield similar results to [stage1_cars_recons16v](configs/paper_cfgs/stage1_cars_recons16v.py).                                                              |
-| [stage1_cars_recons16v_16bit_filesystem](configs/new_cfgs/stage1_cars_recons16v_16bit_filesystem) | 400K  | Same as [stage1_cars_recons16v_16bit](configs/new_cfgs/stage1_cars_recons16v_16bit) but caching on filesystem, in case your RAM is full. Not recommended due to slow I/O on hard drives.  |
+| Config                                                                                               | Iters | Comments                                                                                                                                                                                  |
+|:-----------------------------------------------------------------------------------------------------|:-----:|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [ssdnerf_cars_uncond_16bit](configs/new_cfgs/ssdnerf_cars_uncond_16bit.py)                           |  1M   | Enable 16-bit caching. Should yield similar results to [ssdnerf_cars_uncond](configs/paper_cfgs/ssdnerf_cars_uncond.py).                                                                  |
+| [ssdnerf_cars_recons1v_16bit](configs/new_cfgs/ssdnerf_cars_recons1v_16bit.py)                       |  60K  | Enable 16-bit caching. Should yield similar results to [ssdnerf_cars_recons1v](configs/paper_cfgs/ssdnerf_cars_recons1v.py).                                                              |                                                                                               |                                                                                                                       |                                                                                                                                             |
+| [ssdnerf_cars_recons1v_tiled](configs/new_cfgs/ssdnerf_cars_recons1v_tiled.py)                       | 100K  | Use tiled (rollout) triplane layout. Tiled triplanes could have resulted in higher computation cost, but in this model the UNet channels have been reduced to compensate for the runtime. |
+| [stage1_cars_recons16v_16bit](configs/new_cfgs/stage1_cars_recons16v_16bit.py)                       | 400K  | Enable 16-bit caching. Should yield similar results to [stage1_cars_recons16v](configs/paper_cfgs/stage1_cars_recons16v.py).                                                              |
+| [stage1_cars_recons16v_16bit_filesystem](configs/new_cfgs/stage1_cars_recons16v_16bit_filesystem.py) | 400K  | Same as [stage1_cars_recons16v_16bit](configs/new_cfgs/stage1_cars_recons16v_16bit) but caching on filesystem, in case your RAM is full. Not recommended due to slow I/O on hard drives.  |
 
 ### Unused features in this codebase
 

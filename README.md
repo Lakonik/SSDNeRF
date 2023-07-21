@@ -18,11 +18,11 @@ https://github.com/Lakonik/SSDNeRF/assets/53893837/22e7ee6c-7576-44f2-b408-41089
 
 ## Highlights
 
-- Code to reproduce ALL the experiments in the paper and supplementary material.
+- Code to reproduce ALL the experiments in the paper and supplementary material (including single-view reconstruction on the real KITTI Cars dataset).
+<br><img src="ssdnerf_kitti.gif" width="500" alt=""/>
 - New features including support for tiled triplanes (rollout layout) and 16-bit caching (to save memory).
 - A simple GUI demo (modified from [torch-ngp](https://github.com/ashawkey/torch-ngp)).
-
-<img src="ssdnerf_gui.png" width="500" alt=""/>
+<br><img src="ssdnerf_gui.png" width="500" alt=""/>
 
 ## Installation
 

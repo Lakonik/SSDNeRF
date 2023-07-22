@@ -268,9 +268,9 @@ class SSDNeRFGUI:
 
                 with dpg.group(horizontal=True):
                     dpg.add_button(label='Generate', callback=callback_diffusion_generate)
-                    dpg.add_input_int(label='seed', width=100, min_value=-1, max_value=2**31 - 1,
-                                      default_value=self.diffusion_seed, callback=callback_set_diffusion_seed)
-                    dpg.add_input_int(label='steps', width=100, min_value=1, max_value=1000,
+                    dpg.add_input_int(label='seed', width=130, min_value=-1, max_value=2**31 - 1,
+                                      default_value=self.diffusion_seed, callback=callback_set_diffusion_seed, tag='seed')
+                    dpg.add_input_int(label='steps', width=80, min_value=1, max_value=1000,
                                       default_value=self.diffusion_steps, callback=callback_set_diffusion_steps)
 
                 def callback_save_scene(sender, app_data):
@@ -299,6 +299,15 @@ class SSDNeRFGUI:
                     print('Loaded scene: ' + self.scene_name)
                     self.need_update = True
 
+                def callback_recover_seed(sender, app_data):
+                    if self.scene_name.startswith('seed_'):
+                        seed = int(self.scene_name[5:])
+                        self.diffusion_seed = seed
+                        dpg.set_value('seed', seed)
+                        print('Recovered seed: ' + str(seed))
+                    else:
+                        print('Failed to recover seed: ' + self.scene_name)
+
                 with dpg.file_dialog(directory_selector=False, show=False, width=450, height=400,
                                      callback=callback_load_scene, tag='scene_selector_dialog'):
                     dpg.add_file_extension('.pth')
@@ -306,6 +315,7 @@ class SSDNeRFGUI:
                 with dpg.group(horizontal=True):
                     dpg.add_button(label='Load scene', callback=lambda: dpg.show_item('scene_selector_dialog'))
                     dpg.add_text(tag='_log_scene_name')
+                    dpg.add_button(label='Recover seed', callback=callback_recover_seed)
 
                 # save geometry
                 def callback_save_mesh(sender, app_data):

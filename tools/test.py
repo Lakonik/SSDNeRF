@@ -14,10 +14,11 @@ from mmcv.runner import get_dist_info, init_dist, load_checkpoint
 
 from mmgen.apis import set_random_seed
 from mmgen.core import build_metric
-from mmgen.datasets import build_dataloader, build_dataset
+from mmgen.datasets import build_dataset
 from mmgen.models import build_model
 from mmgen.utils import get_root_logger
 from lib.apis import evaluate_3d
+from lib.datasets import build_dataloader
 
 _distributed_metrics = ['FID', 'IS', 'FIDKID']
 

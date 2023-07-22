@@ -78,6 +78,7 @@ class SSDNeRFGUI:
 
         self.model = model
         self.model_decoder = model.decoder_ema if model.decoder_use_ema else model.decoder
+        self.model_diffusion = model.diffusion_ema if model.diffusion_use_ema else model.diffusion
 
         assert cameras is not None
         pose_dir = os.path.join(cameras, 'pose')
@@ -246,10 +247,7 @@ class SSDNeRFGUI:
                     diffusion_seed = random.randint(0, 2**31) if self.diffusion_seed == -1 else self.diffusion_seed
                     set_random_seed(diffusion_seed, deterministic=True)
                     noise = torch.randn((1,) + self.model.code_size)
-                    if self.model.diffusion_use_ema:
-                        self.model.diffusion_ema.test_cfg['num_timesteps'] = self.diffusion_steps
-                    else:
-                        self.model.diffusion.test_cfg['num_timesteps'] = self.diffusion_steps
+                    self.model_diffusion.test_cfg['num_timesteps'] = self.diffusion_steps
                     data = dict(
                         noise=noise.to(get_module_device(self.model)),
                         scene_id=[0],

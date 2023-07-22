@@ -17,6 +17,9 @@ def parse_args():
         nargs='+',
         help='ids of gpus to use')
     parser.add_argument('--cameras', type=str, default='demo/camera_spiral_cars')
+    parser.add_argument(
+        '--fp16',
+        action='store_true')
     args = parser.parse_args()
     return args
 
@@ -33,10 +36,10 @@ def main():
     if len(gpu_ids) != 1:
         raise NotImplementedError('multi-gpu inference is not yet supported')
 
-    from mmgen.apis import init_model
+    from lib.apis import init_model
     # build the model from a config file and a checkpoint file
     model = init_model(
-        args.config, checkpoint=args.checkpoint)
+        args.config, checkpoint=args.checkpoint, use_fp16=args.fp16)
     model.eval()
     nerf_gui = SSDNeRFGUI(model, cameras=args.cameras)
     nerf_gui.render()

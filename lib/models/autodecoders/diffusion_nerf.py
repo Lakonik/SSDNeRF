@@ -22,6 +22,7 @@ class DiffusionNeRF(MultiSceneNeRF):
                  image_cond=False,
                  code_permute=None,
                  code_reshape=None,
+                 autocast_dtype=None,
                  **kwargs):
         super().__init__(*args, **kwargs)
         diffusion.update(train_cfg=self.train_cfg, test_cfg=self.test_cfg)
@@ -43,6 +44,8 @@ class DiffusionNeRF(MultiSceneNeRF):
             else self.code_size
         self.code_permute_inv = [self.code_permute.index(axis) for axis in range(len(self.code_permute))] \
             if code_permute is not None else None
+
+        self.autocast_dtype = autocast_dtype
 
         for key, value in self.test_cfg.get('override_cfg', dict()).items():
             self.train_cfg_backup[key] = rgetattr(self, key)
@@ -111,9 +114,13 @@ class DiffusionNeRF(MultiSceneNeRF):
 
         x_t_detach = self.train_cfg.get('x_t_detach', False)
 
-        loss_diffusion, log_vars = diffusion(
-            self.code_diff_pr(code), concat_cond=concat_cond, return_loss=True,
-            x_t_detach=x_t_detach, cfg=self.train_cfg)
+        with torch.autocast(
+                device_type='cuda',
+                enabled=self.autocast_dtype is not None,
+                dtype=getattr(torch, self.autocast_dtype) if self.autocast_dtype is not None else None):
+            loss_diffusion, log_vars = diffusion(
+                self.code_diff_pr(code), concat_cond=concat_cond, return_loss=True,
+                x_t_detach=x_t_detach, cfg=self.train_cfg)
         loss_diffusion.backward()
         for key in optimizer.keys():
             if key.startswith('diffusion'):
@@ -196,7 +203,13 @@ class DiffusionNeRF(MultiSceneNeRF):
             noise = torch.randn(
                 (num_batches, *self.code_size), device=get_module_device(self))
 
-        code_out = diffusion(self.code_diff_pr(noise), return_loss=False, show_pbar=show_pbar, **kwargs)
+        with torch.autocast(
+                device_type='cuda',
+                enabled=self.autocast_dtype is not None,
+                dtype=getattr(torch, self.autocast_dtype) if self.autocast_dtype is not None else None):
+            code_out = diffusion(
+                self.code_diff_pr(noise), return_loss=False,
+                show_pbar=show_pbar, **kwargs)
         code_list = code_out if isinstance(code_out, list) else [code_out]
         density_grid_list = []
         density_bitfield_list = []
@@ -305,9 +318,13 @@ class DiffusionNeRF(MultiSceneNeRF):
             noise = torch.randn(
                 (num_scenes, *self.code_size), device=get_module_device(self))
 
-        code = diffusion(
-            self.code_diff_pr(noise), return_loss=False,
-            grad_guide_fn=grad_guide_fn, concat_cond=concat_cond, **kwargs)
+        with torch.autocast(
+                device_type='cuda',
+                enabled=self.autocast_dtype is not None,
+                dtype=getattr(torch, self.autocast_dtype) if self.autocast_dtype is not None else None):
+            code = diffusion(
+                self.code_diff_pr(noise), return_loss=False,
+                grad_guide_fn=grad_guide_fn, concat_cond=concat_cond, **kwargs)
 
         decoder.train(decoder_training_prev)
 
@@ -370,11 +387,15 @@ class DiffusionNeRF(MultiSceneNeRF):
             for inverse_step_id in range(n_inverse_steps):
                 code_optimizer.zero_grad()
                 code = self.code_activation(code_)
-                loss, log_vars = diffusion(
-                    self.code_diff_pr(code), return_loss=True,
-                    concat_cond=concat_cond[:, inverse_step_id % num_imgs] if concat_cond is not None else None,
-                    x_t_detach=self.test_cfg.get('x_t_detach', False),
-                    cfg=self.test_cfg, **kwargs)
+                with torch.autocast(
+                        device_type='cuda',
+                        enabled=self.autocast_dtype is not None,
+                        dtype=getattr(torch, self.autocast_dtype) if self.autocast_dtype is not None else None):
+                    loss, log_vars = diffusion(
+                        self.code_diff_pr(code), return_loss=True,
+                        concat_cond=concat_cond[:, inverse_step_id % num_imgs] if concat_cond is not None else None,
+                        x_t_detach=self.test_cfg.get('x_t_detach', False),
+                        cfg=self.test_cfg, **kwargs)
                 loss.backward()
 
                 if extra_scene_step > 0:

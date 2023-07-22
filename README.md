@@ -20,7 +20,7 @@ https://github.com/Lakonik/SSDNeRF/assets/53893837/22e7ee6c-7576-44f2-b408-41089
 
 - Code to reproduce ALL the experiments in the paper and supplementary material (including single-view reconstruction on the real KITTI Cars dataset).
 <br><img src="ssdnerf_kitti.gif" width="500" alt=""/>
-- New features including support for tiled triplanes (rollout layout) and 16-bit caching (to save memory).
+- New features including support for tiled triplanes (rollout layout), FP16 diffusion sampling, and 16-bit caching.
 - A simple GUI demo (modified from [torch-ngp](https://github.com/ashawkey/torch-ngp)).
 <br><img src="ssdnerf_gui.png" width="500" alt=""/>
 
@@ -237,7 +237,7 @@ By default, during training or testing, the visualizations will be saved into `.
 A GUI tool is provided for visualizing the results (currently only supports unconditional generation or loading saved `.pth` NeRF scenes). Run the following command to start the GUI:
 
 ```bash
-python demo/ssdnerf_gui.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT
+python demo/ssdnerf_gui.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT --fp16
 ```
 
 ## Citation

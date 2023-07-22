@@ -8,8 +8,8 @@ from mmgen.datasets import build_dataset
 # yapf: disable
 sys.path.append(os.path.abspath(os.path.join(__file__, '../..')))  # isort:skip  # noqa
 
-from mmgen.apis import init_model, set_random_seed  # isort:skip  # noqa
-from lib.apis import interp_diffusion_nerf_ddim
+from mmgen.apis import set_random_seed  # isort:skip  # noqa
+from lib.apis import init_model, interp_diffusion_nerf_ddim
 # yapf: enable
 
 

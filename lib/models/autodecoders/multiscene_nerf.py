@@ -107,7 +107,7 @@ class MultiSceneNeRF(BaseNeRF):
             else:
                 code_list_.append((
                     scene_state_single['param']['code_'] if 'code_' in scene_state_single['param']
-                    else self.code_activation.inverse(scene_state_single['param']['code'])
+                    else self.code_activation.inverse(scene_state_single['param']['code'].to(dtype=torch.float32, device=device))
                 ).to(dtype=torch.float32, device=device).requires_grad_(True))
                 density_grid.append(scene_state_single['param']['density_grid'].to(device))
                 density_bitfield.append(scene_state_single['param']['density_bitfield'].to(device))

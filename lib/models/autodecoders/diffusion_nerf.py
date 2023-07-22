@@ -6,7 +6,7 @@ from torch.nn.parallel.distributed import DistributedDataParallel
 from mmgen.models.builder import MODELS, build_module
 from mmgen.models.architectures.common import get_module_device
 
-from ...core import eval_psnr, rgetattr
+from ...core import eval_psnr, rgetattr, module_requires_grad
 from .base_nerf import get_cam_rays
 from .multiscene_nerf import MultiSceneNeRF
 
@@ -32,11 +32,9 @@ class DiffusionNeRF(MultiSceneNeRF):
             self.diffusion_ema = deepcopy(self.diffusion)
         self.freeze_decoder = freeze_decoder
         if self.freeze_decoder:
-            for param in self.decoder.parameters():
-                param.requires_grad = False
+            self.decoder.requires_grad_(False)
             if self.decoder_use_ema:
-                for param in self.decoder_ema.parameters():
-                    param.requires_grad = False
+                self.decoder_ema.requires_grad_(False)
         self.image_cond = image_cond
         self.code_permute = code_permute
         self.code_reshape = code_reshape
@@ -138,9 +136,6 @@ class DiffusionNeRF(MultiSceneNeRF):
                 density_bitfield=density_bitfield,
                 code_optimizer=code_optimizers,
                 prior_grad=prior_grad)
-            if not self.freeze_decoder:
-                for param in decoder.parameters():
-                    param.requires_grad = True
             for k, v in loss_dict_decoder.items():
                 log_vars.update({k: float(v)})
         else:
@@ -217,9 +212,7 @@ class DiffusionNeRF(MultiSceneNeRF):
             code = self.code_diff_pr_inv(code)
             n_inverse_steps = self.test_cfg.get('n_inverse_steps', 0)
             if n_inverse_steps > 0 and step_id == (len(code_list) - 1):
-                for param in diffusion.parameters():
-                    param.requires_grad = False
-                with torch.enable_grad():
+                with module_requires_grad(diffusion, False), torch.enable_grad():
                     code_ = self.code_activation.inverse(code).requires_grad_(True)
                     code_optimizer = self.build_optimizer(code_, self.test_cfg)
                     code_scheduler = self.build_scheduler(code_optimizer, self.test_cfg)
@@ -278,53 +271,52 @@ class DiffusionNeRF(MultiSceneNeRF):
 
         decoder_training_prev = decoder.training
         decoder.train(True)
-        for param in decoder.parameters():
-            param.requires_grad = False
 
-        n_inverse_rays = self.test_cfg.get('n_inverse_rays', 4096)
-        num_scene_pixels = num_imgs * h * w
-        if num_scene_pixels > n_inverse_rays:
-            minibatch_inds = [torch.randperm(num_scene_pixels, device=device) for _ in range(num_scenes)]
-            minibatch_inds = torch.stack(minibatch_inds, dim=0).split(n_inverse_rays, dim=1)
-            num_minibatch = len(minibatch_inds)
-            if scene_arange is None:
-                scene_arange = torch.arange(num_scenes, device=device)[:, None]
-
-        density_grid = torch.zeros((num_scenes, self.grid_size ** 3), device=device)
-        density_bitfield = torch.zeros((num_scenes, self.grid_size ** 3 // 8), dtype=torch.uint8, device=device)
-        inverse_step_id = torch.zeros((1, ), dtype=torch.long, device=device)
-
-        def grad_guide_fn(x_0_pred):
-            code_pred = self.code_diff_pr_inv(x_0_pred)
-            self.update_extra_state(decoder, code_pred, density_grid, density_bitfield,
-                                    0, density_thresh=self.test_cfg.get('density_thresh', 0.01))
-            rays_o = cond_rays_o.reshape(num_scenes, num_scene_pixels, 3)
-            rays_d = cond_rays_d.reshape(num_scenes, num_scene_pixels, 3)
-            target_rgbs = cond_imgs.reshape(num_scenes, num_scene_pixels, 3)
+        with module_requires_grad(diffusion, False), module_requires_grad(decoder, False):
+            n_inverse_rays = self.test_cfg.get('n_inverse_rays', 4096)
+            num_scene_pixels = num_imgs * h * w
             if num_scene_pixels > n_inverse_rays:
-                inds = minibatch_inds[inverse_step_id % num_minibatch]  # (num_scenes, n_inverse_rays)
-                rays_o = rays_o[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
-                rays_d = rays_d[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
-                target_rgbs = target_rgbs[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
-            _, loss, _ = self.loss(
-                decoder, code_pred, density_bitfield,
-                target_rgbs, rays_o, rays_d, dt_gamma, scale_num_ray=target_rgbs.size(1),
-                cfg=self.test_cfg)
-            inverse_step_id[:] += 1
-            return loss * num_scenes
+                minibatch_inds = [torch.randperm(num_scene_pixels, device=device) for _ in range(num_scenes)]
+                minibatch_inds = torch.stack(minibatch_inds, dim=0).split(n_inverse_rays, dim=1)
+                num_minibatch = len(minibatch_inds)
+                if scene_arange is None:
+                    scene_arange = torch.arange(num_scenes, device=device)[:, None]
 
-        noise = data.get('noise', None)
-        if noise is None:
-            noise = torch.randn(
-                (num_scenes, *self.code_size), device=get_module_device(self))
+            density_grid = torch.zeros((num_scenes, self.grid_size ** 3), device=device)
+            density_bitfield = torch.zeros((num_scenes, self.grid_size ** 3 // 8), dtype=torch.uint8, device=device)
+            inverse_step_id = torch.zeros((1, ), dtype=torch.long, device=device)
 
-        with torch.autocast(
-                device_type='cuda',
-                enabled=self.autocast_dtype is not None,
-                dtype=getattr(torch, self.autocast_dtype) if self.autocast_dtype is not None else None):
-            code = diffusion(
-                self.code_diff_pr(noise), return_loss=False,
-                grad_guide_fn=grad_guide_fn, concat_cond=concat_cond, **kwargs)
+            def grad_guide_fn(x_0_pred):
+                code_pred = self.code_diff_pr_inv(x_0_pred)
+                self.update_extra_state(decoder, code_pred, density_grid, density_bitfield,
+                                        0, density_thresh=self.test_cfg.get('density_thresh', 0.01))
+                rays_o = cond_rays_o.reshape(num_scenes, num_scene_pixels, 3)
+                rays_d = cond_rays_d.reshape(num_scenes, num_scene_pixels, 3)
+                target_rgbs = cond_imgs.reshape(num_scenes, num_scene_pixels, 3)
+                if num_scene_pixels > n_inverse_rays:
+                    inds = minibatch_inds[inverse_step_id % num_minibatch]  # (num_scenes, n_inverse_rays)
+                    rays_o = rays_o[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
+                    rays_d = rays_d[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
+                    target_rgbs = target_rgbs[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
+                _, loss, _ = self.loss(
+                    decoder, code_pred, density_bitfield,
+                    target_rgbs, rays_o, rays_d, dt_gamma, scale_num_ray=target_rgbs.size(1),
+                    cfg=self.test_cfg)
+                inverse_step_id[:] += 1
+                return loss * num_scenes
+
+            noise = data.get('noise', None)
+            if noise is None:
+                noise = torch.randn(
+                    (num_scenes, *self.code_size), device=get_module_device(self))
+
+            with torch.autocast(
+                    device_type='cuda',
+                    enabled=self.autocast_dtype is not None,
+                    dtype=getattr(torch, self.autocast_dtype) if self.autocast_dtype is not None else None):
+                code = diffusion(
+                    self.code_diff_pr(noise), return_loss=False,
+                    grad_guide_fn=grad_guide_fn, concat_cond=concat_cond, **kwargs)
 
         decoder.train(decoder_training_prev)
 
@@ -363,10 +355,6 @@ class DiffusionNeRF(MultiSceneNeRF):
 
         decoder_training_prev = decoder.training
         decoder.train(True)
-        for param in decoder.parameters():
-            param.requires_grad = False
-        for param in diffusion.parameters():
-            param.requires_grad = False
 
         extra_scene_step = self.test_cfg.get('extra_scene_step', 0)
         n_inverse_steps = self.test_cfg.get('n_inverse_steps', 100)
@@ -374,7 +362,7 @@ class DiffusionNeRF(MultiSceneNeRF):
         if show_pbar:
             pbar = mmcv.ProgressBar(n_inverse_steps)
 
-        with torch.enable_grad():
+        with module_requires_grad(diffusion, False), module_requires_grad(decoder, False), torch.enable_grad():
             if code_ is None:
                 code_ = self.get_init_code_(num_scenes, cond_imgs.device)
             if density_grid is None:

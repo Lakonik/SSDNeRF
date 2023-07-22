@@ -199,8 +199,6 @@ class MultiSceneNeRF(BaseNeRF):
                 density_grid=density_grid,
                 density_bitfield=density_bitfield,
                 code_optimizer=code_optimizers)
-            for param in self.decoder.parameters():
-                param.requires_grad = True
 
         # ==== joint optimization ====
         for code_optimizer in code_optimizers:

@@ -16,7 +16,8 @@ from mmcv.runner import load_checkpoint
 from mmgen.models.builder import MODULES, build_module
 from mmgen.models.architectures.common import get_module_device
 
-from ...core import custom_meshgrid, eval_psnr, eval_ssim_skimage, reduce_mean, rgetattr, rsetattr, extract_geometry
+from ...core import custom_meshgrid, eval_psnr, eval_ssim_skimage, reduce_mean, rgetattr, rsetattr, extract_geometry, \
+    module_requires_grad
 from lib.ops import morton3D, morton3D_invert, packbits
 
 LPIPS_BS = 32
@@ -425,91 +426,90 @@ class BaseNeRF(nn.Module):
         device = get_module_device(self)
         decoder_training_prev = decoder.training
         decoder.train(True)
-        for param in decoder.parameters():
-            param.requires_grad = False
 
-        n_inverse_steps = cfg.get('n_inverse_steps', 1000)
-        n_inverse_rays = cfg.get('n_inverse_rays', 4096)
+        with module_requires_grad(decoder, False):
+            n_inverse_steps = cfg.get('n_inverse_steps', 1000)
+            n_inverse_rays = cfg.get('n_inverse_rays', 4096)
 
-        num_scenes, num_imgs, h, w, _ = cond_imgs.size()
-        num_scene_pixels = num_imgs * h * w
-        if num_scene_pixels > n_inverse_rays:
-            minibatch_inds = [torch.randperm(num_scene_pixels, device=device) for _ in range(num_scenes)]
-            minibatch_inds = torch.stack(minibatch_inds, dim=0).split(n_inverse_rays, dim=1)
-            num_minibatch = len(minibatch_inds)
-            scene_arange = torch.arange(num_scenes, device=device)[:, None]
-
-        if code_ is None:
-            code_ = self.get_init_code_(num_scenes, device=device)
-        if density_grid is None:
-            density_grid = self.get_init_density_grid(num_scenes, device)
-        if density_bitfield is None:
-            density_bitfield = self.get_init_density_bitfield(num_scenes, device)
-        if iter_density is None:
-            iter_density = 0
-
-        if code_optimizer is None:
-            assert code_scheduler is None
-            code_optimizer = self.build_optimizer(code_, cfg)
-        if code_scheduler is None:
-            code_scheduler = self.build_scheduler(code_optimizer, cfg)
-
-        assert n_inverse_steps > 0
-        if show_pbar:
-            pbar = mmcv.ProgressBar(n_inverse_steps)
-
-        for inverse_step_id in range(n_inverse_steps):
-            code = self.code_activation(
-                torch.stack(code_, dim=0) if isinstance(code_, list)
-                else code_)
-
-            if inverse_step_id % self.update_extra_interval == 0:
-                self.update_extra_state(decoder, code, density_grid, density_bitfield,
-                                        iter_density, density_thresh=cfg.get('density_thresh', 0.01))
-            rays_o = cond_rays_o.reshape(num_scenes, num_scene_pixels, 3)
-            rays_d = cond_rays_d.reshape(num_scenes, num_scene_pixels, 3)
-            target_rgbs = cond_imgs.reshape(num_scenes, num_scene_pixels, 3)
+            num_scenes, num_imgs, h, w, _ = cond_imgs.size()
+            num_scene_pixels = num_imgs * h * w
             if num_scene_pixels > n_inverse_rays:
-                inds = minibatch_inds[inverse_step_id % num_minibatch]  # (num_scenes, n_inverse_rays)
-                rays_o = rays_o[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
-                rays_d = rays_d[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
-                target_rgbs = target_rgbs[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
+                minibatch_inds = [torch.randperm(num_scene_pixels, device=device) for _ in range(num_scenes)]
+                minibatch_inds = torch.stack(minibatch_inds, dim=0).split(n_inverse_rays, dim=1)
+                num_minibatch = len(minibatch_inds)
+                scene_arange = torch.arange(num_scenes, device=device)[:, None]
 
-            out_rgbs, loss, loss_dict = self.loss(
-                decoder, code, density_bitfield,
-                target_rgbs, rays_o, rays_d, dt_gamma, scale_num_ray=num_scene_pixels,
-                cfg=cfg)
+            if code_ is None:
+                code_ = self.get_init_code_(num_scenes, device=device)
+            if density_grid is None:
+                density_grid = self.get_init_density_grid(num_scenes, device)
+            if density_bitfield is None:
+                density_bitfield = self.get_init_density_bitfield(num_scenes, device)
+            if iter_density is None:
+                iter_density = 0
 
-            if prior_grad is not None:
-                if isinstance(code_, list):
-                    for code_single_, prior_grad_single in zip(code_, prior_grad):
-                        code_single_.grad.copy_(prior_grad_single)
+            if code_optimizer is None:
+                assert code_scheduler is None
+                code_optimizer = self.build_optimizer(code_, cfg)
+            if code_scheduler is None:
+                code_scheduler = self.build_scheduler(code_optimizer, cfg)
+
+            assert n_inverse_steps > 0
+            if show_pbar:
+                pbar = mmcv.ProgressBar(n_inverse_steps)
+
+            for inverse_step_id in range(n_inverse_steps):
+                code = self.code_activation(
+                    torch.stack(code_, dim=0) if isinstance(code_, list)
+                    else code_)
+
+                if inverse_step_id % self.update_extra_interval == 0:
+                    self.update_extra_state(decoder, code, density_grid, density_bitfield,
+                                            iter_density, density_thresh=cfg.get('density_thresh', 0.01))
+                rays_o = cond_rays_o.reshape(num_scenes, num_scene_pixels, 3)
+                rays_d = cond_rays_d.reshape(num_scenes, num_scene_pixels, 3)
+                target_rgbs = cond_imgs.reshape(num_scenes, num_scene_pixels, 3)
+                if num_scene_pixels > n_inverse_rays:
+                    inds = minibatch_inds[inverse_step_id % num_minibatch]  # (num_scenes, n_inverse_rays)
+                    rays_o = rays_o[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
+                    rays_d = rays_d[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
+                    target_rgbs = target_rgbs[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
+
+                out_rgbs, loss, loss_dict = self.loss(
+                    decoder, code, density_bitfield,
+                    target_rgbs, rays_o, rays_d, dt_gamma, scale_num_ray=num_scene_pixels,
+                    cfg=cfg)
+
+                if prior_grad is not None:
+                    if isinstance(code_, list):
+                        for code_single_, prior_grad_single in zip(code_, prior_grad):
+                            code_single_.grad.copy_(prior_grad_single)
+                    else:
+                        code_.grad.copy_(prior_grad)
                 else:
-                    code_.grad.copy_(prior_grad)
-            else:
+                    if isinstance(code_optimizer, list):
+                        for code_optimizer_single in code_optimizer:
+                            code_optimizer_single.zero_grad()
+                    else:
+                        code_optimizer.zero_grad()
+
+                loss.backward()
+
                 if isinstance(code_optimizer, list):
                     for code_optimizer_single in code_optimizer:
-                        code_optimizer_single.zero_grad()
+                        code_optimizer_single.step()
                 else:
-                    code_optimizer.zero_grad()
+                    code_optimizer.step()
 
-            loss.backward()
+                if code_scheduler is not None:
+                    if isinstance(code_scheduler, list):
+                        for code_scheduler_single in code_scheduler:
+                            code_scheduler_single.step()
+                    else:
+                        code_scheduler.step()
 
-            if isinstance(code_optimizer, list):
-                for code_optimizer_single in code_optimizer:
-                    code_optimizer_single.step()
-            else:
-                code_optimizer.step()
-
-            if code_scheduler is not None:
-                if isinstance(code_scheduler, list):
-                    for code_scheduler_single in code_scheduler:
-                        code_scheduler_single.step()
-                else:
-                    code_scheduler.step()
-
-            if show_pbar:
-                pbar.update()
+                if show_pbar:
+                    pbar.update()
 
         decoder.train(decoder_training_prev)
 

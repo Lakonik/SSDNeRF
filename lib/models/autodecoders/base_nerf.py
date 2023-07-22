@@ -405,7 +405,7 @@ class BaseNeRF(nn.Module):
 
     def get_density(self, decoder, code, cfg=dict()):
         density_thresh = cfg.get('density_thresh', 0.01)
-        density_step = cfg.get('density_step', 4)
+        density_step = cfg.get('density_step', 8)
         num_scenes = code.size(0)
         device = code.device
         density_grid = self.get_init_density_grid(num_scenes, device)

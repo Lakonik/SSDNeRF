@@ -114,7 +114,6 @@ Extract the downloaded archives according to the following folder tree (or use s
 ├── lib/
 ├── tools/
 …
-
 ```
 
 For FID and KID evaluation, run the following commands to extract the Inception features of the real images. (This script will use all the available GPUs on your machine, so remember to set `CUDA_VISIBLE_DEVICES`.)

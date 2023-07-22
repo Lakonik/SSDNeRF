@@ -38,7 +38,7 @@ def main():
     model = init_model(
         args.config, checkpoint=args.checkpoint)
     model.eval()
-    nerf_gui = SSDNeRFGUI(model, camera=args.cameras)
+    nerf_gui = SSDNeRFGUI(model, cameras=args.cameras)
     nerf_gui.render()
     return
 

@@ -1,19 +1,21 @@
 # modified from torch-ngp
 
 import os
-import mmcv
+import random
 import math
+import numpy as np
 import trimesh
 import torch
 import torch.nn.functional as F
-import numpy as np
+import mmcv
 import dearpygui.dearpygui as dpg
 from scipy.spatial.transform import Rotation as R
 
 from mmgen.models.architectures.common import get_module_device
 from mmgen.apis import set_random_seed  # isort:skip  # noqa
-from .nerf_utils import extract_geometry
+from .utils import extract_geometry, surround_views
 from lib.datasets.shapenet_srn import load_pose, load_intrinsics
+from videoio import VideoWriter
 
 
 class OrbitCamera:
@@ -63,7 +65,7 @@ class OrbitCamera:
 
 
 class SSDNeRFGUI:
-    def __init__(self, model, camera=None,
+    def __init__(self, model, cameras=None, camera_id=64,
                  W=512, H=512, radius=2, fovy=60, max_spp=1,
                  debug=True):
         self.W = W
@@ -77,28 +79,28 @@ class SSDNeRFGUI:
         self.model = model
         self.model_decoder = model.decoder_ema if model.decoder_use_ema else model.decoder
 
-        if camera is not None:
-
-            pose_dir = os.path.join(camera, 'pose')
-            poses = os.listdir(pose_dir)
-            poses.sort()
-            self.camera_poses = []
-            for pose in poses:
-                c2w = torch.FloatTensor(load_pose(os.path.join(pose_dir, pose)))
-                cam_to_ndc = torch.cat([c2w[:3, :3], c2w[:3, 3:] * 2], dim=-1)
-                self.camera_poses.append(torch.cat([
-                        cam_to_ndc,
-                        cam_to_ndc.new_tensor([[0.0, 0.0, 0.0, 1.0]])
-                    ], dim=-2))
-            self.camera_poses = torch.stack(self.camera_poses, dim=0)  # (n, 4, 4)
-            fx, fy, cx, cy, h, w = load_intrinsics(os.path.join(camera, 'intrinsics.txt'))
-            self.camera_intrinsics = torch.FloatTensor([fx, fy, cx, cy])
-            self.camera_intrinsics_hw = [h, w]
+        assert cameras is not None
+        pose_dir = os.path.join(cameras, 'pose')
+        poses = os.listdir(pose_dir)
+        poses.sort()
+        pose = poses[camera_id]
+        c2w = torch.FloatTensor(load_pose(os.path.join(pose_dir, pose)))
+        cam_to_ndc = torch.cat([c2w[:3, :3], c2w[:3, 3:] * 2], dim=-1)
+        self.camera_pose = torch.cat([
+            cam_to_ndc,
+            cam_to_ndc.new_tensor([[0.0, 0.0, 0.0, 1.0]])
+        ], dim=-2)  # (4, 4)
+        fx, fy, cx, cy, h, w = load_intrinsics(os.path.join(cameras, 'intrinsics.txt'))
+        self.video_sec = 4
+        self.video_fps = 30
+        self.video_res = 256
+        self.camera_intrinsics = torch.FloatTensor([fx, fy, cx, cy])
+        self.camera_intrinsics_hw = [h, w]
 
         self.render_buffer = np.zeros((self.H, self.W, 3), dtype=np.float32)
         self.need_update = True  # camera moved, should reset accumulation
         self.spp = 1  # sample per pixel
-        self.dt_gamma = 0.0
+        self.dt_gamma_scale = 0.0
         self.density_thresh = 0.1
         self.mode = 'image'  # choose from ['image', 'depth']
 
@@ -106,7 +108,7 @@ class SSDNeRFGUI:
         self.mesh_threshold = 10
         self.scene_name = 'model_default'
 
-        self.diffusion_seed = 2023
+        self.diffusion_seed = -1
         self.diffusion_steps = 20
 
         if self.model.init_code is None:
@@ -133,7 +135,7 @@ class SSDNeRFGUI:
         else:
             return np.expand_dims(outputs['depth'], -1).repeat(3, -1)
 
-    def test_gui(self, pose, intrinsics, W, H, bg_color, spp, dt_gamma, downscale):
+    def test_gui(self, pose, intrinsics, W, H, bg_color, spp, dt_gamma_scale, downscale):
         with torch.no_grad():
             self.model.bg_color = bg_color.to(self.code_buffer.device)
             image, depth = self.model.render(
@@ -141,7 +143,8 @@ class SSDNeRFGUI:
                 self.code_buffer[None],
                 self.density_bitfield[None], H, W,
                 self.code_buffer.new_tensor(intrinsics * downscale)[None, None],
-                self.code_buffer.new_tensor(pose)[None, None])
+                self.code_buffer.new_tensor(pose)[None, None],
+                cfg=dict(dt_gamma_scale=dt_gamma_scale))
             results = dict(
                 image=image[0, 0],
                 depth=depth[0, 0])
@@ -171,7 +174,7 @@ class SSDNeRFGUI:
 
             outputs = self.test_gui(
                 self.cam.pose, self.cam.intrinsics,
-                self.W, self.H, self.bg_color, self.spp, self.dt_gamma, self.downscale)
+                self.W, self.H, self.bg_color, self.spp, self.dt_gamma_scale, self.downscale)
 
             ender.record()
             torch.cuda.synchronize()
@@ -193,31 +196,31 @@ class SSDNeRFGUI:
                 self.render_buffer = (self.render_buffer * self.spp + self.prepare_buffer(outputs)) / (self.spp + 1)
                 self.spp += 1
 
-            dpg.set_value("_log_infer_time", f'{t:.4f}ms ({int(1000 / t)} FPS)')
-            dpg.set_value("_log_resolution", f'{int(self.downscale * self.W)}x{int(self.downscale * self.H)}')
-            dpg.set_value("_log_spp", self.spp)
-            dpg.set_value("_log_scene_name", self.scene_name)
-            dpg.set_value("_texture", self.render_buffer)
+            dpg.set_value('_log_infer_time', f'{t:.4f}ms ({int(1000 / t)} FPS)')
+            dpg.set_value('_log_resolution', f'{int(self.downscale * self.W)}x{int(self.downscale * self.H)}')
+            dpg.set_value('_log_spp', self.spp)
+            dpg.set_value('_log_scene_name', self.scene_name)
+            dpg.set_value('_texture', self.render_buffer)
 
     def register_dpg(self):
 
         ### register texture
 
         with dpg.texture_registry(show=False):
-            dpg.add_raw_texture(self.W, self.H, self.render_buffer, format=dpg.mvFormat_Float_rgb, tag="_texture")
+            dpg.add_raw_texture(self.W, self.H, self.render_buffer, format=dpg.mvFormat_Float_rgb, tag='_texture')
 
         ### register window
 
         # the rendered image, as the primary window
-        with dpg.window(tag="_primary_window", width=self.W, height=self.H):
+        with dpg.window(tag='_primary_window', width=self.W, height=self.H):
 
             # add the texture
-            dpg.add_image("_texture")
+            dpg.add_image('_texture')
 
-        dpg.set_primary_window("_primary_window", True)
+        dpg.set_primary_window('_primary_window', True)
 
         # control window
-        with dpg.window(label="Control", tag="_control_window", width=400, height=max(300, self.H), pos=[self.W, 0]):
+        with dpg.window(label='Control', tag='_control_window', width=400, height=max(300, self.H), pos=[self.W, 0]):
 
             # button theme
             with dpg.theme() as theme_button:
@@ -230,17 +233,18 @@ class SSDNeRFGUI:
 
             # time
             with dpg.group(horizontal=True):
-                dpg.add_text("Infer time: ")
-                dpg.add_text("no data", tag="_log_infer_time")
+                dpg.add_text('Infer time: ')
+                dpg.add_text('no data', tag='_log_infer_time')
 
             with dpg.group(horizontal=True):
-                dpg.add_text("SPP: ")
-                dpg.add_text("1", tag="_log_spp")
+                dpg.add_text('SPP: ')
+                dpg.add_text('1', tag='_log_spp')
 
-            with dpg.collapsing_header(label='SSDNeRF'):
+            with dpg.collapsing_header(label='SSDNeRF', default_open=True):
 
                 def callback_diffusion_generate(sender, app_data):
-                    set_random_seed(self.diffusion_seed, deterministic=True)
+                    diffusion_seed = random.randint(0, 2**31) if self.diffusion_seed == -1 else self.diffusion_seed
+                    set_random_seed(diffusion_seed, deterministic=True)
                     noise = torch.randn((1,) + self.model.code_size)
                     if self.model.diffusion_use_ema:
                         self.model.diffusion_ema.test_cfg['num_timesteps'] = self.diffusion_steps
@@ -249,13 +253,13 @@ class SSDNeRFGUI:
                     data = dict(
                         noise=noise.to(get_module_device(self.model)),
                         scene_id=[0],
-                        scene_name=['seed_{}'.format(self.diffusion_seed)])
+                        scene_name=['seed_{}'.format(diffusion_seed)])
                     with torch.no_grad():
                         code, density_grid, density_bitfield = self.model.val_uncond(
                             data, show_pbar=True, save_intermediates=False)
                     self.code_buffer = code[0]
                     self.density_bitfield = density_bitfield[0]
-                    self.scene_name = 'Generated'
+                    self.scene_name = 'seed_{}'.format(diffusion_seed)
                     self.need_update = True
 
                 def callback_set_diffusion_seed(sender, app_data):
@@ -265,10 +269,10 @@ class SSDNeRFGUI:
                     self.diffusion_steps = app_data
 
                 with dpg.group(horizontal=True):
-                    dpg.add_button(label="Generate", callback=callback_diffusion_generate)
-                    dpg.add_input_int(label="seed", width=100, min_value=0, max_value=2**31 - 1,
+                    dpg.add_button(label='Generate', callback=callback_diffusion_generate)
+                    dpg.add_input_int(label='seed', width=100, min_value=-1, max_value=2**31 - 1,
                                       default_value=self.diffusion_seed, callback=callback_set_diffusion_seed)
-                    dpg.add_input_int(label="steps", width=100, min_value=1, max_value=1000,
+                    dpg.add_input_int(label='steps', width=100, min_value=1, max_value=1000,
                                       default_value=self.diffusion_steps, callback=callback_set_diffusion_steps)
 
                 def callback_save_scene(sender, app_data):
@@ -280,11 +284,11 @@ class SSDNeRFGUI:
                     torch.save(out, path)
 
                 with dpg.file_dialog(directory_selector=False, show=False, width=450, height=400,
-                                     callback=callback_save_scene, tag="save_scene_dialog"):
+                                     callback=callback_save_scene, tag='save_scene_dialog'):
                     dpg.add_file_extension('.pth')
 
                 with dpg.group(horizontal=True):
-                    dpg.add_button(label="Save scene", callback=lambda: dpg.show_item("save_scene_dialog"))
+                    dpg.add_button(label='Save scene', callback=lambda: dpg.show_item('save_scene_dialog'))
 
                 # scene selector
                 def callback_load_scene(sender, app_data):
@@ -298,12 +302,12 @@ class SSDNeRFGUI:
                     self.need_update = True
 
                 with dpg.file_dialog(directory_selector=False, show=False, width=450, height=400,
-                                     callback=callback_load_scene, tag="scene_selector_dialog"):
+                                     callback=callback_load_scene, tag='scene_selector_dialog'):
                     dpg.add_file_extension('.pth')
 
                 with dpg.group(horizontal=True):
-                    dpg.add_button(label="Load scene", callback=lambda: dpg.show_item("scene_selector_dialog"))
-                    dpg.add_text(tag="_log_scene_name")
+                    dpg.add_button(label='Load scene', callback=lambda: dpg.show_item('scene_selector_dialog'))
+                    dpg.add_text(tag='_log_scene_name')
 
                 # save geometry
                 def callback_save_mesh(sender, app_data):
@@ -320,30 +324,44 @@ class SSDNeRFGUI:
                 def callback_set_mesh_threshold(sender, app_data):
                     self.mesh_threshold = app_data
 
-                def callback_save_views(sender, app_data):
-                    dir_path = app_data['file_path_name']
-                    assert os.path.isdir(dir_path), dir_path + ' is not a directory'
-                    images = []
+                def callback_set_video_resolution(sender, app_data):
+                    self.video_res = app_data
+
+                def callback_set_video_sec(sender, app_data):
+                    self.video_sec = app_data
+
+                def callback_save_video(sender, app_data):
+                    path = app_data['file_path_name']
+                    num_frames = int(round(self.video_fps * self.video_sec))
+                    res_scale = self.video_res / self.camera_intrinsics_hw[0]
+                    out_res = (
+                        int(round(self.camera_intrinsics_hw[0] * res_scale)),
+                        int(round(self.camera_intrinsics_hw[1]) * res_scale))
+                    camera_poses = surround_views(self.camera_pose, num_frames=num_frames)
+                    writer = VideoWriter(
+                        path,
+                        resolution=out_res,
+                        lossless=True,
+                        fps=self.video_fps)
                     bs = 4
                     device = self.code_buffer.device
                     with torch.no_grad():
-                        for pose_batch in self.camera_poses.split(bs, dim=0):
+                        prog = mmcv.ProgressBar(num_frames)
+                        prog.start()
+                        for pose_batch in camera_poses.split(bs, dim=0):
                             image_batch, depth = self.model.render(
                                 self.model_decoder,
                                 self.code_buffer[None],
-                                self.density_bitfield[None], self.camera_intrinsics_hw[0],
-                                self.camera_intrinsics_hw[1],
-                                self.camera_intrinsics.to(device)[None].expand(pose_batch.size(0), -1)[None],
+                                self.density_bitfield[None], out_res[0], out_res[1],
+                                (self.camera_intrinsics.to(device)[None] * res_scale).expand(pose_batch.size(0), -1)[None],
                                 pose_batch.to(device)[None])
-                            images.append(image_batch.cpu())
-                    images = torch.cat(images, dim=1)
-                    images = np.round(images.squeeze(0).cpu().numpy()[..., ::-1].clip(min=0, max=1) * 255).astype(
-                        np.uint8)
-                    for i, image in enumerate(images):
-                        mmcv.imwrite(image, os.path.join(dir_path, '{:04d}.png'.format(i)))
+                            for image in np.round(image_batch[0].cpu().numpy() * 255).astype(np.uint8):
+                                writer.write(image)
+                            prog.update(bs)
+                    writer.close()
 
                 with dpg.file_dialog(directory_selector=False, show=False, width=450, height=400,
-                                     callback=callback_save_mesh, tag="save_mesh_dialog"):
+                                     callback=callback_save_mesh, tag='save_mesh_dialog'):
                     dpg.add_file_extension('.stl')
                     dpg.add_file_extension('.dict')
                     dpg.add_file_extension('.json')
@@ -355,24 +373,30 @@ class SSDNeRFGUI:
                     dpg.add_file_extension('.stl_ascii')
 
                 with dpg.file_dialog(directory_selector=False, show=False, width=450, height=400,
-                                     callback=callback_save_code, tag="save_code_dialog"):
+                                     callback=callback_save_code, tag='save_code_dialog'):
                     dpg.add_file_extension('.')
 
                 with dpg.file_dialog(directory_selector=False, show=False, width=450, height=400,
-                                     callback=callback_save_views, tag='save_views_dialog'):
-                    dpg.add_file_extension('.')
+                                     callback=callback_save_video, tag='save_video_dialog'):
+                    dpg.add_file_extension('.mp4')
 
                 with dpg.group(horizontal=True):
-                    dpg.add_button(label="Save mesh", callback=lambda: dpg.show_item("save_mesh_dialog"))
-                    dpg.add_input_int(label="res", width=100, min_value=4, max_value=1024,
+                    dpg.add_button(label='Save mesh', callback=lambda: dpg.show_item('save_mesh_dialog'))
+                    dpg.add_input_int(label='res', width=100, min_value=4, max_value=1024,
                                       default_value=self.mesh_resolution, callback=callback_set_mesh_resolution)
-                    dpg.add_input_float(label="thr", width=100, min_value=0, max_value=1000, format="%.2f",
+                    dpg.add_input_float(label='thr', width=100, min_value=0, max_value=1000, format='%.2f',
                                         default_value=self.mesh_threshold, callback=callback_set_mesh_threshold)
 
-                dpg.add_button(label="Visualize code", callback=lambda: dpg.show_item("save_code_dialog"))
-                dpg.add_button(label="Save views", callback=lambda: dpg.show_item("save_views_dialog"))
+                dpg.add_button(label='Visualize code', callback=lambda: dpg.show_item('save_code_dialog'))
 
-            with dpg.collapsing_header(label="Render options", default_open=True):
+                with dpg.group(horizontal=True):
+                    dpg.add_button(label='Save video', callback=lambda: dpg.show_item('save_video_dialog'))
+                    dpg.add_input_int(label='res', width=100, min_value=4, max_value=1024,
+                                      default_value=self.video_res, callback=callback_set_video_resolution)
+                    dpg.add_input_float(label='len', width=100, min_value=0, max_value=10,
+                                        default_value=self.video_sec, callback=callback_set_video_sec, format='%.1f sec')
+
+            with dpg.collapsing_header(label='Render options', default_open=True):
 
                 # dynamic rendering resolution
                 with dpg.group(horizontal=True):
@@ -385,9 +409,9 @@ class SSDNeRFGUI:
                             self.dynamic_resolution = True
                         self.need_update = True
 
-                    dpg.add_checkbox(label="dynamic resolution", default_value=self.dynamic_resolution,
+                    dpg.add_checkbox(label='dynamic resolution', default_value=self.dynamic_resolution,
                                      callback=callback_set_dynamic_resolution)
-                    dpg.add_text(f"{self.W}x{self.H}", tag="_log_resolution")
+                    dpg.add_text(f'{self.W}x{self.H}', tag='_log_resolution')
 
                 # mode combo
                 def callback_change_mode(sender, app_data):
@@ -401,7 +425,7 @@ class SSDNeRFGUI:
                     self.bg_color = torch.tensor(app_data[:3], dtype=torch.float32)  # only need RGB in [0, 1]
                     self.need_update = True
 
-                dpg.add_color_edit((255, 255, 255), label="Background Color", width=200, tag="_color_editor",
+                dpg.add_color_edit((255, 255, 255), label='Background Color', width=200, tag='_color_editor',
                                    no_alpha=True, callback=callback_change_bg)
 
                 # fov slider
@@ -409,23 +433,23 @@ class SSDNeRFGUI:
                     self.cam.fovy = app_data
                     self.need_update = True
 
-                dpg.add_slider_int(label="FoV (vertical)", min_value=1, max_value=120, format="%d deg",
+                dpg.add_slider_int(label='FoV (vertical)', min_value=1, max_value=120, format='%d deg',
                                    default_value=self.cam.fovy, callback=callback_set_fovy)
 
-                # dt_gamma slider
-                def callback_set_dt_gamma(sender, app_data):
-                    self.dt_gamma = app_data
+                # dt_gamma_scale slider
+                def callback_set_dt_gamma_scale(sender, app_data):
+                    self.dt_gamma_scale = app_data
                     self.need_update = True
 
-                dpg.add_slider_float(label="dt_gamma", min_value=0, max_value=0.1, format="%.5f",
-                                     default_value=self.dt_gamma, callback=callback_set_dt_gamma)
+                dpg.add_slider_float(label='dt_gamma_scale', min_value=0, max_value=1.0, format='%.2f',
+                                     default_value=self.dt_gamma_scale, callback=callback_set_dt_gamma_scale)
 
                 # max_steps slider
                 def callback_set_max_steps(sender, app_data):
                     self.model_decoder.max_steps = app_data
                     self.need_update = True
 
-                dpg.add_slider_int(label="max steps", min_value=1, max_value=1024, format="%d",
+                dpg.add_slider_int(label='max steps', min_value=1, max_value=1024, format='%d',
                                    default_value=self.model_decoder.max_steps, callback=callback_set_max_steps)
 
                 # aabb slider
@@ -435,39 +459,39 @@ class SSDNeRFGUI:
                     self.need_update = True
 
                 dpg.add_separator()
-                dpg.add_text("Axis-aligned bounding box:")
+                dpg.add_text('Axis-aligned bounding box:')
 
                 with dpg.group(horizontal=True):
-                    dpg.add_slider_float(label="x", width=150, min_value=-self.model_decoder.bound, max_value=0, format="%.2f",
+                    dpg.add_slider_float(label='x', width=150, min_value=-self.model_decoder.bound, max_value=0, format='%.2f',
                                          default_value=-self.model_decoder.bound, callback=callback_set_aabb, user_data=0)
-                    dpg.add_slider_float(label="", width=150, min_value=0, max_value=self.model_decoder.bound, format="%.2f",
+                    dpg.add_slider_float(label='', width=150, min_value=0, max_value=self.model_decoder.bound, format='%.2f',
                                          default_value=self.model_decoder.bound, callback=callback_set_aabb, user_data=3)
 
                 with dpg.group(horizontal=True):
-                    dpg.add_slider_float(label="y", width=150, min_value=-self.model_decoder.bound, max_value=0, format="%.2f",
+                    dpg.add_slider_float(label='y', width=150, min_value=-self.model_decoder.bound, max_value=0, format='%.2f',
                                          default_value=-self.model_decoder.bound, callback=callback_set_aabb, user_data=1)
-                    dpg.add_slider_float(label="", width=150, min_value=0, max_value=self.model_decoder.bound, format="%.2f",
+                    dpg.add_slider_float(label='', width=150, min_value=0, max_value=self.model_decoder.bound, format='%.2f',
                                          default_value=self.model_decoder.bound, callback=callback_set_aabb, user_data=4)
 
                 with dpg.group(horizontal=True):
-                    dpg.add_slider_float(label="z", width=150, min_value=-self.model_decoder.bound, max_value=0, format="%.2f",
+                    dpg.add_slider_float(label='z', width=150, min_value=-self.model_decoder.bound, max_value=0, format='%.2f',
                                          default_value=-self.model_decoder.bound, callback=callback_set_aabb, user_data=2)
-                    dpg.add_slider_float(label="", width=150, min_value=0, max_value=self.model_decoder.bound, format="%.2f",
+                    dpg.add_slider_float(label='', width=150, min_value=0, max_value=self.model_decoder.bound, format='%.2f',
                                          default_value=self.model_decoder.bound, callback=callback_set_aabb, user_data=5)
 
             # debug info
             if self.debug:
-                with dpg.collapsing_header(label="Debug"):
+                with dpg.collapsing_header(label='Debug'):
                     # pose
                     dpg.add_separator()
-                    dpg.add_text("Camera Pose:")
-                    dpg.add_text(str(self.cam.pose), tag="_log_pose")
+                    dpg.add_text('Camera Pose:')
+                    dpg.add_text(str(self.cam.pose), tag='_log_pose')
 
         ### register camera handler
 
         def callback_camera_drag_rotate(sender, app_data):
 
-            if not dpg.is_item_focused("_primary_window"):
+            if not dpg.is_item_focused('_primary_window'):
                 return
 
             dx = app_data[1]
@@ -477,11 +501,11 @@ class SSDNeRFGUI:
             self.need_update = True
 
             if self.debug:
-                dpg.set_value("_log_pose", str(self.cam.pose))
+                dpg.set_value('_log_pose', str(self.cam.pose))
 
         def callback_camera_wheel_scale(sender, app_data):
 
-            if not dpg.is_item_focused("_primary_window"):
+            if not dpg.is_item_focused('_primary_window'):
                 return
 
             delta = app_data
@@ -490,11 +514,11 @@ class SSDNeRFGUI:
             self.need_update = True
 
             if self.debug:
-                dpg.set_value("_log_pose", str(self.cam.pose))
+                dpg.set_value('_log_pose', str(self.cam.pose))
 
         def callback_camera_drag_pan(sender, app_data):
 
-            if not dpg.is_item_focused("_primary_window"):
+            if not dpg.is_item_focused('_primary_window'):
                 return
 
             dx = app_data[1]
@@ -504,22 +528,17 @@ class SSDNeRFGUI:
             self.need_update = True
 
             if self.debug:
-                dpg.set_value("_log_pose", str(self.cam.pose))
+                dpg.set_value('_log_pose', str(self.cam.pose))
 
         with dpg.handler_registry():
             dpg.add_mouse_drag_handler(button=dpg.mvMouseButton_Left, callback=callback_camera_drag_rotate)
             dpg.add_mouse_wheel_handler(callback=callback_camera_wheel_scale)
             dpg.add_mouse_drag_handler(button=dpg.mvMouseButton_Middle, callback=callback_camera_drag_pan)
 
-        dpg.create_viewport(title='SSDNeRF GUI', width=self.W + 400, height=self.H + 50, resizable=False)
-
-        # TODO: seems dearpygui doesn't support resizing texture...
-        # def callback_resize(sender, app_data):
-        #     self.W = app_data[0]
-        #     self.H = app_data[1]
-        #     # how to reload texture ???
-
-        # dpg.set_viewport_resize_callback(callback_resize)
+        dpg.create_viewport(
+            title='SSDNeRF GUI',
+            width=self.W + 400, height=self.H + 50,
+            resizable=False)
 
         ### global theme
         with dpg.theme() as theme_no_padding:
@@ -529,12 +548,8 @@ class SSDNeRFGUI:
                 dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 0, 0, category=dpg.mvThemeCat_Core)
                 dpg.add_theme_style(dpg.mvStyleVar_CellPadding, 0, 0, category=dpg.mvThemeCat_Core)
 
-        dpg.bind_item_theme("_primary_window", theme_no_padding)
-
+        dpg.bind_item_theme('_primary_window', theme_no_padding)
         dpg.setup_dearpygui()
-
-        # dpg.show_metrics()
-
         dpg.show_viewport()
 
     def render(self):
@@ -545,7 +560,7 @@ class SSDNeRFGUI:
             dpg.render_dearpygui_frame()
 
     def save_mesh(self, save_path):
-        print(f"==> Saving mesh to {save_path}")
+        print(f'==> Saving mesh to {save_path}')
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         vertices, triangles = extract_geometry(
             self.model_decoder,
@@ -554,4 +569,4 @@ class SSDNeRFGUI:
             threshold=self.mesh_threshold)
         mesh = trimesh.Trimesh(vertices, triangles, process=False)  # important, process=True leads to seg fault...
         mesh.export(save_path)
-        print(f"==> Finished saving mesh.")
+        print(f'==> Finished saving mesh.')

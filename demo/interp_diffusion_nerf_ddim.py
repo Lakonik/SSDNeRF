@@ -1,16 +1,13 @@
-import argparse
 import os
 import sys
+sys.path.append(os.path.abspath(os.path.join(__file__, '../../')))  # isort:skip  # noqa
+
+import argparse
 
 from mmcv import Config, DictAction
 from mmgen.datasets import build_dataset
-
-# yapf: disable
-sys.path.append(os.path.abspath(os.path.join(__file__, '../..')))  # isort:skip  # noqa
-
 from mmgen.apis import set_random_seed  # isort:skip  # noqa
 from lib.apis import init_model, interp_diffusion_nerf_ddim
-# yapf: enable
 
 
 def parse_args():

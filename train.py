@@ -1,5 +1,6 @@
 import os
-os.environ['PYTHONPATH'] = os.getcwd()
+import sys
+sys.path.append(os.path.abspath(os.path.join(__file__, '../')))
 if 'OMP_NUM_THREADS' not in os.environ:
     os.environ['OMP_NUM_THREADS'] = '8'
 

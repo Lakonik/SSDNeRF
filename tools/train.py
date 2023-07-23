@@ -1,5 +1,9 @@
 # Modified from https://github.com/open-mmlab/mmgeneration
 
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(__file__, '../../')))
+
 import argparse
 import datetime
 import copy

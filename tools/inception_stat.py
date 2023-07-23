@@ -1,11 +1,11 @@
 # Modified from https://github.com/open-mmlab/mmgeneration
 
-import argparse
-import os.path
-import os.path as osp
-import pickle
+import os
 import sys
+sys.path.append(os.path.abspath(os.path.join(__file__, '../../')))
 
+import argparse
+import pickle
 import mmcv
 import numpy as np
 import torch
@@ -14,8 +14,6 @@ from mmcv import Config, print_log
 from mmcv.parallel import is_module_wrapper
 
 # yapf: disable
-sys.path.append(osp.abspath(osp.join(__file__, '../../')))  # isort:skip  # noqa
-
 from mmgen.core.evaluation.metric_utils import extract_inception_features  # isort:skip  # noqa
 from mmgen.datasets import (UnconditionalImageDataset, build_dataloader,  # isort:skip  # noqa
                             build_dataset)  # isort:skip  # noqa

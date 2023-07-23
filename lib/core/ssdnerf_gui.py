@@ -268,10 +268,12 @@ class SSDNeRFGUI:
 
                 with dpg.group(horizontal=True):
                     dpg.add_button(label='Generate', callback=callback_diffusion_generate)
-                    dpg.add_input_int(label='seed', width=130, min_value=-1, max_value=2**31 - 1,
-                                      default_value=self.diffusion_seed, callback=callback_set_diffusion_seed, tag='seed')
-                    dpg.add_input_int(label='steps', width=80, min_value=1, max_value=1000,
-                                      default_value=self.diffusion_steps, callback=callback_set_diffusion_steps)
+                    dpg.add_input_int(
+                        label='seed', width=130, min_value=-1, max_value=2**31 - 1, min_clamped=True, max_clamped=True,
+                        default_value=self.diffusion_seed, callback=callback_set_diffusion_seed, tag='seed')
+                    dpg.add_input_int(
+                        label='steps', width=80, min_value=1, max_value=1000, min_clamped=True, max_clamped=True,
+                        default_value=self.diffusion_steps, callback=callback_set_diffusion_steps)
 
                 def callback_save_scene(sender, app_data):
                     path = app_data['file_path_name']
@@ -390,19 +392,23 @@ class SSDNeRFGUI:
 
                 with dpg.group(horizontal=True):
                     dpg.add_button(label='Save mesh', callback=lambda: dpg.show_item('save_mesh_dialog'))
-                    dpg.add_input_int(label='res', width=100, min_value=4, max_value=1024,
-                                      default_value=self.mesh_resolution, callback=callback_set_mesh_resolution)
-                    dpg.add_input_float(label='thr', width=100, min_value=0, max_value=1000, format='%.2f',
-                                        default_value=self.mesh_threshold, callback=callback_set_mesh_threshold)
+                    dpg.add_input_int(
+                        label='res', width=100, min_value=4, max_value=1024, min_clamped=True, max_clamped=True,
+                        default_value=self.mesh_resolution, callback=callback_set_mesh_resolution)
+                    dpg.add_input_float(
+                        label='thr', width=100, min_value=0, max_value=1000, min_clamped=True, max_clamped=True,
+                        format='%.2f', default_value=self.mesh_threshold, callback=callback_set_mesh_threshold)
 
                 dpg.add_button(label='Visualize code', callback=lambda: dpg.show_item('save_code_dialog'))
 
                 with dpg.group(horizontal=True):
                     dpg.add_button(label='Save video', callback=lambda: dpg.show_item('save_video_dialog'))
-                    dpg.add_input_int(label='res', width=100, min_value=4, max_value=1024,
-                                      default_value=self.video_res, callback=callback_set_video_resolution)
-                    dpg.add_input_float(label='len', width=100, min_value=0, max_value=10,
-                                        default_value=self.video_sec, callback=callback_set_video_sec, format='%.1f sec')
+                    dpg.add_input_int(
+                        label='res', width=100, min_value=4, max_value=1024, min_clamped=True, max_clamped=True,
+                        default_value=self.video_res, callback=callback_set_video_resolution)
+                    dpg.add_input_float(
+                        label='len', width=100, min_value=0, max_value=10, min_clamped=True, max_clamped=True,
+                        default_value=self.video_sec, callback=callback_set_video_sec, format='%.1f sec')
 
             with dpg.collapsing_header(label='Render options', default_open=True):
 
@@ -441,24 +447,27 @@ class SSDNeRFGUI:
                     self.cam.fovy = app_data
                     self.need_update = True
 
-                dpg.add_slider_int(label='FoV (vertical)', min_value=1, max_value=120, format='%d deg',
-                                   default_value=self.cam.fovy, callback=callback_set_fovy)
+                dpg.add_slider_int(
+                    label='FoV (vertical)', min_value=1, max_value=120, clamped=True,
+                    format='%d deg', default_value=self.cam.fovy, callback=callback_set_fovy)
 
                 # dt_gamma_scale slider
                 def callback_set_dt_gamma_scale(sender, app_data):
                     self.dt_gamma_scale = app_data
                     self.need_update = True
 
-                dpg.add_slider_float(label='dt_gamma_scale', min_value=0, max_value=1.0, format='%.2f',
-                                     default_value=self.dt_gamma_scale, callback=callback_set_dt_gamma_scale)
+                dpg.add_slider_float(
+                    label='dt_gamma_scale', min_value=0, max_value=1.0, clamped=True,
+                    format='%.2f', default_value=self.dt_gamma_scale, callback=callback_set_dt_gamma_scale)
 
                 # max_steps slider
                 def callback_set_max_steps(sender, app_data):
                     self.model_decoder.max_steps = app_data
                     self.need_update = True
 
-                dpg.add_slider_int(label='max steps', min_value=1, max_value=1024, format='%d',
-                                   default_value=self.model_decoder.max_steps, callback=callback_set_max_steps)
+                dpg.add_slider_int(
+                    label='max steps', min_value=1, max_value=1024, clamped=True,
+                    format='%d', default_value=self.model_decoder.max_steps, callback=callback_set_max_steps)
 
                 # aabb slider
                 def callback_set_aabb(sender, app_data, user_data):

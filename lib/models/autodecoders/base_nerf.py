@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import lpips
 import mmcv
 import trimesh
@@ -17,57 +16,10 @@ from mmgen.models.builder import MODULES, build_module
 from mmgen.models.architectures.common import get_module_device
 
 from ...core import custom_meshgrid, eval_psnr, eval_ssim_skimage, reduce_mean, rgetattr, rsetattr, extract_geometry, \
-    module_requires_grad
+    module_requires_grad, get_cam_rays
 from lib.ops import morton3D, morton3D_invert, packbits
 
 LPIPS_BS = 32
-
-
-def get_ray_directions(h, w, intrinsics, norm=False, device=None):
-    """
-    Args:
-        h (int)
-        w (int)
-        intrinsics: (*, 4), in [fx, fy, cx, cy]
-
-    Returns:
-        directions: (*, h, w, 3), the direction of the rays in camera coordinate
-    """
-    batch_size = intrinsics.shape[:-1]
-    x = torch.linspace(0.5, w - 0.5, w, device=device)
-    y = torch.linspace(0.5, h - 0.5, h, device=device)
-    # (*, h, w, 2)
-    directions_xy = torch.stack(
-        [((x - intrinsics[..., 2:3]) / intrinsics[..., 0:1])[..., None, :].expand(*batch_size, h, w),
-         ((y - intrinsics[..., 3:4]) / intrinsics[..., 1:2])[..., :, None].expand(*batch_size, h, w)], dim=-1)
-    # (*, h, w, 3)
-    directions = F.pad(directions_xy, [0, 1], mode='constant', value=1.0)
-    if norm:
-        directions = F.normalize(directions, dim=-1)
-    return directions
-
-
-def get_rays(directions, c2w, norm=False):
-    """
-    Args:
-        directions: (*, h, w, 3) precomputed ray directions in camera coordinate
-        c2w: (*, 3, 4) transformation matrix from camera coordinate to world coordinate
-    Returns:
-        rays_o: (*, h, w, 3), the origin of the rays in world coordinate
-        rays_d: (*, h, w, 3), the normalized direction of the rays in world coordinate
-    """
-    rays_d = directions @ c2w[..., None, :3, :3].transpose(-1, -2)  # (*, h, w, 3)
-    rays_o = c2w[..., None, None, :3, 3].expand(rays_d.shape)  # (*, h, w, 3)
-    if norm:
-        rays_d = F.normalize(rays_d, dim=-1)
-    return rays_o, rays_d
-
-
-def get_cam_rays(c2w, intrinsics, h, w):
-    directions = get_ray_directions(
-        h, w, intrinsics, norm=False, device=intrinsics.device)  # (num_scenes, num_imgs, h, w, 3)
-    rays_o, rays_d = get_rays(directions, c2w, norm=True)
-    return rays_o, rays_d
 
 
 @MODULES.register_module()
@@ -159,7 +111,7 @@ class BaseNeRF(nn.Module):
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
         self.update_extra_interval = update_extra_interval
-        self.lpips = [] if use_lpips_metric else None
+        self.lpips = [] if use_lpips_metric else None  # use a list to avoid registering the LPIPS model in state_dict
         if init_from_mean:
             self.register_buffer('init_code', torch.zeros(code_size))
         else:
@@ -584,8 +536,8 @@ class BaseNeRF(nn.Module):
                             test_ssim=float(test_ssim.mean()))
             if self.lpips is not None:
                 if len(self.lpips) == 0:
-                    lpips_eval = lpips.LPIPS(net='vgg').to(pred_imgs.device)
-                    lpips_eval.eval()
+                    lpips_eval = lpips.LPIPS(
+                        net='vgg', eval_mode=True, pnet_tune=False).to(pred_imgs.device)
                     self.lpips.append(lpips_eval)
                 test_lpips = []
                 for pred_imgs_batch, target_imgs_batch in zip(

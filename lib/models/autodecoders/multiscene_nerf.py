@@ -9,8 +9,8 @@ from mmgen.models.builder import MODELS
 from mmgen.models.architectures.common import get_module_device
 
 from ...core import eval_psnr, optimizer_state_to, load_tensor_to_dict, \
-    optimizer_state_copy, optimizer_set_state
-from .base_nerf import BaseNeRF, get_cam_rays
+    optimizer_state_copy, optimizer_set_state, get_cam_rays
+from .base_nerf import BaseNeRF
 
 
 def out_dict_to(d, device=None, code_dtype=torch.float32, optimizer_dtype=torch.float32):

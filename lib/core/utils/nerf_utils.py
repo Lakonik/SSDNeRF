@@ -14,51 +14,50 @@ def custom_meshgrid(*args):
         return torch.meshgrid(*args, indexing='ij')
 
 
-def get_ray_directions(h, w, focal, center, norm=False, device=None, with_radius=False):
+def get_ray_directions(h, w, intrinsics, norm=False, device=None):
     """
-    Get ray directions for all pixels in camera coordinate.
-    Reference: https://www.scratchapixel.com/lessons/3d-basic-rendering/
-               ray-tracing-generating-camera-rays/standard-coordinate-systems
-    Inputs:
-        H, W, focal: image height, width and focal length
-    Outputs:
-        directions: (H, W, 3), the direction of the rays in camera coordinate
+    Args:
+        h (int)
+        w (int)
+        intrinsics: (*, 4), in [fx, fy, cx, cy]
+
+    Returns:
+        directions: (*, h, w, 3), the direction of the rays in camera coordinate
     """
+    batch_size = intrinsics.shape[:-1]
     x = torch.linspace(0.5, w - 0.5, w, device=device)
     y = torch.linspace(0.5, h - 0.5, h, device=device)
-    # (H, W, 2)
-    directions_xy = torch.stack([((x - center[0]) / focal[0])[None, :].expand(h, w),
-                                 ((y - center[1]) / focal[1])[:, None].expand(h, w)], dim=-1)
-    # (H, W, 3)
+    # (*, h, w, 2)
+    directions_xy = torch.stack(
+        [((x - intrinsics[..., 2:3]) / intrinsics[..., 0:1])[..., None, :].expand(*batch_size, h, w),
+         ((y - intrinsics[..., 3:4]) / intrinsics[..., 1:2])[..., :, None].expand(*batch_size, h, w)], dim=-1)
+    # (*, h, w, 3)
     directions = F.pad(directions_xy, [0, 1], mode='constant', value=1.0)
-    if with_radius:
-        base_radius = ((focal[0] * focal[1]) ** -0.5) / 2
-        radii = base_radius * (directions.norm(dim=-1) ** -1.5)
-    else:
-        radii = None
     if norm:
         directions = F.normalize(directions, dim=-1)
-    return directions, radii
+    return directions
 
 
 def get_rays(directions, c2w, norm=False):
     """
-    Get ray origin and normalized directions in world coordinate for all pixels in one image.
-    Reference: https://www.scratchapixel.com/lessons/3d-basic-rendering/
-               ray-tracing-generating-camera-rays/standard-coordinate-systems
-    Inputs:
-        directions: (H, W, 3) precomputed ray directions in camera coordinate
-        c2w: (n, 3, 4) transformation matrix from camera coordinate to world coordinate
-    Outputs:
-        rays_o: (n, H, W, 3), the origin of the rays in world coordinate
-        rays_d: (n, H, W, 3), the normalized direction of the rays in world coordinate
+    Args:
+        directions: (*, h, w, 3) precomputed ray directions in camera coordinate
+        c2w: (*, 3, 4) transformation matrix from camera coordinate to world coordinate
+    Returns:
+        rays_o: (*, h, w, 3), the origin of the rays in world coordinate
+        rays_d: (*, h, w, 3), the normalized direction of the rays in world coordinate
     """
-    # Rotate ray directions from camera coordinate to the world coordinate
-    rays_d = directions @ c2w[..., None, :3, :3].transpose(-1, -2)  # (n, H, W, 3)
-    # The origin of all rays is the camera origin in world coordinate
-    rays_o = c2w[..., None, None, :3, 3].expand(rays_d.shape)  # (H, W, 3)
+    rays_d = directions @ c2w[..., None, :3, :3].transpose(-1, -2)  # (*, h, w, 3)
+    rays_o = c2w[..., None, None, :3, 3].expand(rays_d.shape)  # (*, h, w, 3)
     if norm:
         rays_d = F.normalize(rays_d, dim=-1)
+    return rays_o, rays_d
+
+
+def get_cam_rays(c2w, intrinsics, h, w):
+    directions = get_ray_directions(
+        h, w, intrinsics, norm=False, device=intrinsics.device)  # (num_scenes, num_imgs, h, w, 3)
+    rays_o, rays_d = get_rays(directions, c2w, norm=True)
     return rays_o, rays_d
 
 

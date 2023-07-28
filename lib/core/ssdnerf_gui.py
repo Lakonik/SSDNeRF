@@ -41,7 +41,7 @@ class OrbitCamera:
         res = rot @ res
         # translate
         res[:3, 3] -= self.center
-        return res
+        return np.round(res, 3)
 
     # intrinsics
     @property
@@ -118,7 +118,7 @@ class SSDNeRFGUI:
             self.code_buffer = self.model.init_code.clone()
         _, self.density_bitfield = self.model.get_density(
             self.model_decoder, self.code_buffer[None],
-            cfg=dict(density_thresh=self.density_thresh, density_step=8))
+            cfg=dict(density_thresh=self.density_thresh, density_step=16))
 
         self.dynamic_resolution = False
         self.downscale = 1
@@ -163,7 +163,7 @@ class SSDNeRFGUI:
         with torch.no_grad():
             self.density_bitfield = self.model.get_density(
                 self.model_decoder, self.code_buffer[None],
-                cfg=dict(density_thresh=self.density_thresh, density_step=8))[1].squeeze(0)
+                cfg=dict(density_thresh=self.density_thresh, density_step=16))[1].squeeze(0)
 
     def test_step(self):
         # TODO: seems we have to move data from GPU --> CPU --> GPU?

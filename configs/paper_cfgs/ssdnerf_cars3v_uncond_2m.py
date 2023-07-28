@@ -51,7 +51,7 @@ model = dict(
     decoder_use_ema=True,
     freeze_decoder=False,
     bg_color=1,
-    rc_loss=dict(
+    pixel_loss=dict(
         type='MSELoss',
         loss_weight=20.0),  # (0.5 * 2^14) * c_rend (rendering weight constant)
     reg_loss=dict(
@@ -178,7 +178,7 @@ custom_hooks = [
         cfgs=[{'diffusion.ddpm_loss.freeze_norm': True},  # decay schedule of K_in & triplane lr
               {'train_cfg.optimizer.lr': 2.5e-3,
                'diffusion.ddpm_loss.freeze_norm': True,
-               'rc_loss.loss_weight': 10.0,
+               'pixel_loss.loss_weight': 10.0,
                'reg_loss.loss_weight': 1.5e-3}],
         by_epoch=False)
 ]

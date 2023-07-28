@@ -85,7 +85,7 @@ class BaseNeRF(nn.Module):
                      type='TriPlaneDecoder'),
                  decoder_use_ema=False,
                  bg_color=1,
-                 rc_loss=dict(
+                 pixel_loss=dict(
                      type='MSELoss'),
                  reg_loss=None,
                  update_extra_interval=16,
@@ -106,7 +106,7 @@ class BaseNeRF(nn.Module):
         if self.decoder_use_ema:
             self.decoder_ema = deepcopy(self.decoder)
         self.bg_color = bg_color
-        self.rc_loss = build_module(rc_loss)
+        self.pixel_loss = build_module(pixel_loss)
         self.reg_loss = build_module(reg_loss) if reg_loss is not None else None
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
@@ -226,54 +226,84 @@ class BaseNeRF(nn.Module):
             code_scheduler = None
         return code_scheduler
 
+    @staticmethod
+    def ray_sample(cond_rays_o, cond_rays_d, cond_imgs, n_samples, sample_inds=None):
+        """
+        Args:
+            cond_rays_o (torch.Tensor): (num_scenes, num_imgs, h, w, 3)
+            cond_rays_d (torch.Tensor): (num_scenes, num_imgs, h, w, 3)
+            cond_imgs (torch.Tensor): (num_scenes, num_imgs, h, w, 3)
+            n_samples (int): number of samples
+            sample_inds (None | torch.Tensor): (num_scenes, n_samples)
+
+        Returns:
+            rays_o (torch.Tensor): (num_scenes, n_samples, 3)
+            rays_d (torch.Tensor): (num_scenes, n_samples, 3)
+            target_rgbs (torch.Tensor): (num_scenes, n_samples, 3)
+        """
+        device = cond_rays_o.device
+        num_scenes, num_imgs, h, w, _ = cond_rays_o.size()
+        num_scene_pixels = num_imgs * h * w
+        rays_o = cond_rays_o.reshape(num_scenes, num_scene_pixels, 3)
+        rays_d = cond_rays_d.reshape(num_scenes, num_scene_pixels, 3)
+        target_rgbs = cond_imgs.reshape(num_scenes, num_scene_pixels, 3)
+        if num_scene_pixels > n_samples:
+            if sample_inds is None:
+                sample_inds = [torch.randperm(
+                    target_rgbs.size(1), device=device)[:n_samples] for _ in range(num_scenes)]
+                sample_inds = torch.stack(sample_inds, dim=0)
+            scene_arange = torch.arange(num_scenes, device=device)[:, None]
+            rays_o = rays_o[scene_arange, sample_inds]
+            rays_d = rays_d[scene_arange, sample_inds]
+            target_rgbs = target_rgbs[scene_arange, sample_inds]
+        return rays_o, rays_d, target_rgbs
+
+    @staticmethod
+    def get_raybatch_inds(cond_imgs, n_inverse_rays):
+        device = cond_imgs.device
+        num_scenes, num_imgs, h, w, _ = cond_imgs.size()
+        num_scene_pixels = num_imgs * h * w
+        if num_scene_pixels > n_inverse_rays:
+            raybatch_inds = [torch.randperm(num_scene_pixels, device=device) for _ in range(num_scenes)]
+            raybatch_inds = torch.stack(raybatch_inds, dim=0).split(n_inverse_rays, dim=1)
+            num_raybatch = len(raybatch_inds)
+        else:
+            raybatch_inds = num_raybatch = None
+        return raybatch_inds, num_raybatch
+
     def loss(self, decoder, code, density_bitfield, target_rgbs,
              rays_o, rays_d, dt_gamma=0.0, return_decoder_loss=False, scale_num_ray=1.0,
-             rc_only=False, cfg=dict(), **kwargs):
+             cfg=dict(), **kwargs):
         outputs = decoder(
             rays_o, rays_d, code, density_bitfield, self.grid_size,
             dt_gamma=dt_gamma, perturb=True, return_loss=return_decoder_loss)
         out_weights = outputs['weights_sum']
         out_rgbs = outputs['image'] + self.bg_color * (1 - out_weights.unsqueeze(-1))
         scale = 1 - math.exp(-cfg['loss_coef'] * scale_num_ray) if 'loss_coef' in cfg else 1
-        rc_loss = self.rc_loss(out_rgbs, target_rgbs, **kwargs) * (scale * 3)
-        loss = rc_loss
-        loss_dict = dict(rc_loss=rc_loss)
-        if not rc_only:
-            if self.reg_loss is not None:
-                reg_loss = self.reg_loss(code, **kwargs)
-                loss = loss + reg_loss
-                loss_dict.update(reg_loss=reg_loss)
-            if return_decoder_loss and outputs['decoder_reg_loss'] is not None:
-                decoder_reg_loss = outputs['decoder_reg_loss']
-                loss = loss + decoder_reg_loss
-                loss_dict.update(decoder_reg_loss=decoder_reg_loss)
+        pixel_loss = self.pixel_loss(out_rgbs, target_rgbs, **kwargs) * (scale * 3)
+        loss = pixel_loss
+        loss_dict = dict(pixel_loss=pixel_loss)
+        if self.reg_loss is not None:
+            reg_loss = self.reg_loss(code, **kwargs)
+            loss = loss + reg_loss
+            loss_dict.update(reg_loss=reg_loss)
+        if return_decoder_loss and outputs['decoder_reg_loss'] is not None:
+            decoder_reg_loss = outputs['decoder_reg_loss']
+            loss = loss + decoder_reg_loss
+            loss_dict.update(decoder_reg_loss=decoder_reg_loss)
         return out_rgbs, loss, loss_dict
 
     def loss_decoder(self, decoder, code, density_bitfield, cond_rays_o, cond_rays_d,
                      cond_imgs, dt_gamma=0.0, cfg=dict(), **kwargs):
-        device = code.device
         decoder_training_prev = decoder.training
         decoder.train(True)
-        num_scenes, num_imgs, h, w, _ = cond_rays_o.size()
         n_decoder_rays = cfg.get('n_decoder_rays', 4096)
 
-        num_scene_pixels = num_imgs * h * w
-
-        rays_o = cond_rays_o.reshape(num_scenes, num_scene_pixels, 3)
-        rays_d = cond_rays_d.reshape(num_scenes, num_scene_pixels, 3)
-        target_rgbs = cond_imgs.reshape(num_scenes, num_scene_pixels, 3)
-
-        if num_scene_pixels > n_decoder_rays:
-            inds = [torch.randperm(num_scene_pixels, device=device)[:n_decoder_rays] for _ in range(num_scenes)]
-            inds = torch.stack(inds, dim=0)
-            scene_arange = torch.arange(num_scenes, device=device)[:, None]
-            rays_o = rays_o[scene_arange, inds]  # (num_scenes, n_decoder_rays, 3)
-            rays_d = rays_d[scene_arange, inds]  # (num_scenes, n_decoder_rays, 3)
-            target_rgbs = target_rgbs[scene_arange, inds]  # (num_scenes, n_decoder_rays, 3)
-
+        rays_o, rays_d, target_rgbs = self.ray_sample(
+            cond_rays_o, cond_rays_d, cond_imgs, n_samples=n_decoder_rays)
         out_rgbs, loss, loss_dict = self.loss(
             decoder, code, density_bitfield, target_rgbs,
-            rays_o, rays_d, dt_gamma, return_decoder_loss=True, scale_num_ray=num_scene_pixels,
+            rays_o, rays_d, dt_gamma, return_decoder_loss=True, scale_num_ray=cond_rays_o.shape[1:4].numel(),
             cfg=cfg, **kwargs)
         log_vars = dict()
         for key, val in loss_dict.items():
@@ -385,11 +415,7 @@ class BaseNeRF(nn.Module):
 
             num_scenes, num_imgs, h, w, _ = cond_imgs.size()
             num_scene_pixels = num_imgs * h * w
-            if num_scene_pixels > n_inverse_rays:
-                minibatch_inds = [torch.randperm(num_scene_pixels, device=device) for _ in range(num_scenes)]
-                minibatch_inds = torch.stack(minibatch_inds, dim=0).split(n_inverse_rays, dim=1)
-                num_minibatch = len(minibatch_inds)
-                scene_arange = torch.arange(num_scenes, device=device)[:, None]
+            raybatch_inds, num_raybatch = self.get_raybatch_inds(cond_imgs, n_inverse_rays)
 
             if code_ is None:
                 code_ = self.get_init_code_(num_scenes, device=device)
@@ -418,15 +444,10 @@ class BaseNeRF(nn.Module):
                 if inverse_step_id % self.update_extra_interval == 0:
                     self.update_extra_state(decoder, code, density_grid, density_bitfield,
                                             iter_density, density_thresh=cfg.get('density_thresh', 0.01))
-                rays_o = cond_rays_o.reshape(num_scenes, num_scene_pixels, 3)
-                rays_d = cond_rays_d.reshape(num_scenes, num_scene_pixels, 3)
-                target_rgbs = cond_imgs.reshape(num_scenes, num_scene_pixels, 3)
-                if num_scene_pixels > n_inverse_rays:
-                    inds = minibatch_inds[inverse_step_id % num_minibatch]  # (num_scenes, n_inverse_rays)
-                    rays_o = rays_o[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
-                    rays_d = rays_d[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
-                    target_rgbs = target_rgbs[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
 
+                inds = raybatch_inds[inverse_step_id % num_raybatch] if raybatch_inds is not None else None
+                rays_o, rays_d, target_rgbs = self.ray_sample(
+                    cond_rays_o, cond_rays_d, cond_imgs, n_inverse_rays, sample_inds=inds)
                 out_rgbs, loss, loss_dict = self.loss(
                     decoder, code, density_bitfield,
                     target_rgbs, rays_o, rays_d, dt_gamma, scale_num_ray=num_scene_pixels,

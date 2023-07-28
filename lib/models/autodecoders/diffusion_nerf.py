@@ -143,9 +143,10 @@ class DiffusionNeRF(MultiSceneNeRF):
         if 'decoder' in optimizer or len(code_optimizers) > 0:
             if len(code_optimizers) > 0:
                 code = self.code_activation(torch.stack(code_list_, dim=0))
-                self.update_extra_state(
-                    decoder, code, density_grid, density_bitfield,
-                    0, density_thresh=self.train_cfg.get('density_thresh', 0.01))
+
+            self.update_extra_state(
+                decoder, code, density_grid, density_bitfield,
+                0, density_thresh=self.train_cfg.get('density_thresh', 0.01))
 
             loss_decoder, log_vars_decoder, out_rgbs, target_rgbs = self.loss_decoder(
                 decoder, code, density_bitfield, cond_rays_o, cond_rays_d,
@@ -162,7 +163,6 @@ class DiffusionNeRF(MultiSceneNeRF):
             for code_optimizer in code_optimizers:
                 code_optimizer.step()
 
-        if len(code_optimizers) > 0:
             # ==== save cache ====
             self.save_cache(
                 code_list_, code_optimizers,
@@ -170,7 +170,8 @@ class DiffusionNeRF(MultiSceneNeRF):
 
             # ==== evaluate reconstruction ====
             with torch.no_grad():
-                self.mean_ema_update(code)
+                if len(code_optimizers) > 0:
+                    self.mean_ema_update(code)
                 train_psnr = eval_psnr(out_rgbs, target_rgbs)
                 code_rms = code.square().flatten(1).mean().sqrt()
                 log_vars.update(train_psnr=float(train_psnr.mean()),
@@ -253,7 +254,6 @@ class DiffusionNeRF(MultiSceneNeRF):
         # (num_scenes,)
         dt_gamma = dt_gamma_scale / cond_intrinsics[..., :2].mean(dim=(-2, -1))
 
-        scene_arange = None
         if self.image_cond:
             concat_cond = cond_imgs.permute(0, 1, 4, 2, 3)  # (num_scenes, num_imgs, 3, h, w)
             if num_imgs > 1:
@@ -273,13 +273,7 @@ class DiffusionNeRF(MultiSceneNeRF):
 
         with module_requires_grad(diffusion, False), module_requires_grad(decoder, False):
             n_inverse_rays = self.test_cfg.get('n_inverse_rays', 4096)
-            num_scene_pixels = num_imgs * h * w
-            if num_scene_pixels > n_inverse_rays:
-                minibatch_inds = [torch.randperm(num_scene_pixels, device=device) for _ in range(num_scenes)]
-                minibatch_inds = torch.stack(minibatch_inds, dim=0).split(n_inverse_rays, dim=1)
-                num_minibatch = len(minibatch_inds)
-                if scene_arange is None:
-                    scene_arange = torch.arange(num_scenes, device=device)[:, None]
+            raybatch_inds, num_raybatch = self.get_raybatch_inds(cond_imgs, n_inverse_rays)
 
             density_grid = torch.zeros((num_scenes, self.grid_size ** 3), device=device)
             density_bitfield = torch.zeros((num_scenes, self.grid_size ** 3 // 8), dtype=torch.uint8, device=device)
@@ -289,14 +283,9 @@ class DiffusionNeRF(MultiSceneNeRF):
                 code_pred = self.code_diff_pr_inv(x_0_pred)
                 self.update_extra_state(decoder, code_pred, density_grid, density_bitfield,
                                         0, density_thresh=self.test_cfg.get('density_thresh', 0.01))
-                rays_o = cond_rays_o.reshape(num_scenes, num_scene_pixels, 3)
-                rays_d = cond_rays_d.reshape(num_scenes, num_scene_pixels, 3)
-                target_rgbs = cond_imgs.reshape(num_scenes, num_scene_pixels, 3)
-                if num_scene_pixels > n_inverse_rays:
-                    inds = minibatch_inds[inverse_step_id % num_minibatch]  # (num_scenes, n_inverse_rays)
-                    rays_o = rays_o[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
-                    rays_d = rays_d[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
-                    target_rgbs = target_rgbs[scene_arange, inds]  # (num_scenes, n_inverse_rays, 3)
+                inds = raybatch_inds[inverse_step_id % num_raybatch] if raybatch_inds is not None else None
+                rays_o, rays_d, target_rgbs = self.ray_sample(
+                    cond_rays_o, cond_rays_d, cond_imgs, n_inverse_rays, sample_inds=inds)
                 _, loss, _ = self.loss(
                     decoder, code_pred, density_bitfield,
                     target_rgbs, rays_o, rays_d, dt_gamma, scale_num_ray=target_rgbs.size(1),

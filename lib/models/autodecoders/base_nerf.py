@@ -70,8 +70,8 @@ class NormalizedTanhCode(nn.Module):
 
     def inverse(self, code):
         scale = ((self.running_var.sqrt() + self.eps) / self.std).to(code.device)
-        return code.div(self.clip_range).atanh().mul(self.clip_range) \
-            * scale + (self.running_mean.to(code.device) - self.mean * scale)
+        return code.div(self.clip_range).clamp(min=-1 + self.eps, max=1 - self.eps).atanh().mul(
+            self.clip_range * scale) + (self.running_mean.to(code.device) - self.mean * scale)
 
 
 class BaseNeRF(nn.Module):

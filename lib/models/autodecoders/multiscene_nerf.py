@@ -1,5 +1,6 @@
 import os
 import multiprocessing as mp
+import warnings
 import numpy as np
 import torch
 import mmcv
@@ -105,10 +106,17 @@ class MultiSceneNeRF(BaseNeRF):
                 density_grid.append(self.get_init_density_grid(None, device))
                 density_bitfield.append(self.get_init_density_bitfield(None, device))
             else:
-                code_list_.append((
-                    scene_state_single['param']['code_'] if 'code_' in scene_state_single['param']
-                    else self.code_activation.inverse(scene_state_single['param']['code'].to(dtype=torch.float32, device=device))
-                ).to(dtype=torch.float32, device=device).requires_grad_(True))
+                if 'code_' in scene_state_single['param']:
+                    code_ = scene_state_single['param']['code_'].to(dtype=torch.float32, device=device)
+                else:
+                    assert 'code' in scene_state_single['param']
+                    if rank == 0:
+                        warnings.warn(
+                            'Pre-activation codes not found. Using on-the-fly inversion instead '
+                            '(which could be inconsistent).')
+                    code_ = self.code_activation.inverse(
+                        scene_state_single['param']['code'].to(dtype=torch.float32, device=device))
+                code_list_.append(code_.requires_grad_(True))
                 density_grid.append(scene_state_single['param']['density_grid'].to(device))
                 density_bitfield.append(scene_state_single['param']['density_bitfield'].to(device))
         density_grid = torch.stack(density_grid, dim=0)

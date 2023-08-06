@@ -161,13 +161,15 @@ stage2_cars_recons1v
 | [stage2_cars_uncond](configs/paper_cfgs/stage2_cars_uncond.py)             |                                                                                                 |   1M   | 16.33 ± 0.93 |   -   | Ablation study, diffusion stage (requires training [stage1_cars_recons16v](configs/paper_cfgs/stage1_cars_recons16v.py) first).                                 |
 | [stage2_cars_recons1v](configs/paper_cfgs/stage2_cars_recons1v.py)         |                                                                                                 |  80K   |    20.97     | 0.090 | Ablation study, diffusion stage (requires training [stage1_cars_recons16v](configs/paper_cfgs/stage1_cars_recons16v.py) first).                                 |
 
+In addition, multi-view reconstruction testing configs can be found in [configs/paper_cfgs/multiview_recons](configs/paper_cfgs/multiview_recons).
+
 ### Models in the supplementary material
 
-| Config                                                                            | Iters |  FID  | LPIPS | Comments                                                                                                                                        |
-|:----------------------------------------------------------------------------------|:-----:|:-----:|:-----:|:------------------------------------------------------------------------------------------------------------------------------------------------|
-| [ssdnerf_cars_reconskitti](configs/supp_cfgs/ssdnerf_cars_reconskitti.py)         |  80K  |   -   |   -   | Same model as [ssdnerf_cars_recons1v](configs/paper_cfgs/ssdnerf_cars_recons1v.py) except for being tested on real images of the KITTI dataset. |
-| [ssdnerf_cars_recons1v_notanh](configs/supp_cfgs/ssdnerf_cars_recons1v_notanh.py) |  80K  | 16.34 | 0.077 | Without tanh latent code activation.                                                                                                            |                                                                                                                       |                                                                                                                                             |
-| [ssdnerf_cars_recons1v_noreg](configs/supp_cfgs/ssdnerf_cars_recons1v_noreg.py)   |  80K  | 16.62 | 0.077 | Without L2 latent code regularization.                                                                                                          |
+| Config                                                                            | Iters |  FID  | LPIPS | Comments                                                                                                                                                                                                                                              |
+|:----------------------------------------------------------------------------------|:-----:|:-----:|:-----:|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [ssdnerf_cars_reconskitti](configs/supp_cfgs/ssdnerf_cars_reconskitti.py)         |  80K  |   -   |   -   | Same model as [ssdnerf_cars_recons1v](configs/paper_cfgs/ssdnerf_cars_recons1v.py) [[checkpoint](https://drive.google.com/file/d/1hsnUW7dZ45aPqXxtOVrOSBl1gQA_8wH-/view?usp=drive_link)] except for being tested on real images of the KITTI dataset. |
+| [ssdnerf_cars_recons1v_notanh](configs/supp_cfgs/ssdnerf_cars_recons1v_notanh.py) |  80K  | 16.34 | 0.077 | Without tanh latent code activation.                                                                                                                                                                                                                  |                                                                                                                       |                                                                                                                                             |
+| [ssdnerf_cars_recons1v_noreg](configs/supp_cfgs/ssdnerf_cars_recons1v_noreg.py)   |  80K  | 16.62 | 0.077 | Without L2 latent code regularization.                                                                                                                                                                                                                |
 
 ### New models in this repository
 
@@ -192,10 +194,6 @@ The new models feature **improved implementations**, including the following cha
 ### Unused features in this codebase
 
 - This codebase supports concat-based image conditioning, although it's not used in the above models.
-
-### Todos
-
-- [ ] Add multi-view reconstruction testing configs.
 
 ## Training
 

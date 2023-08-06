@@ -351,7 +351,7 @@ class SSDNeRFGUI:
                     writer = VideoWriter(
                         path,
                         resolution=out_res,
-                        lossless=True,
+                        lossless=False,
                         fps=self.video_fps)
                     bs = 4
                     device = self.code_buffer.device

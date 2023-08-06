@@ -320,8 +320,8 @@ class SSDNeRFGUI:
                     dpg.add_button(label='Recover seed', callback=callback_recover_seed)
 
                 # save geometry
-                def callback_save_mesh(sender, app_data):
-                    self.save_mesh(app_data['file_path_name'])
+                def callback_export_mesh(sender, app_data):
+                    self.export_mesh(app_data['file_path_name'])
 
                 def callback_save_code(sender, app_data):
                     dir_path = app_data['file_path_name']
@@ -340,7 +340,7 @@ class SSDNeRFGUI:
                 def callback_set_video_sec(sender, app_data):
                     self.video_sec = app_data
 
-                def callback_save_video(sender, app_data):
+                def callback_export_video(sender, app_data):
                     path = app_data['file_path_name']
                     num_frames = int(round(self.video_fps * self.video_sec))
                     res_scale = self.video_res / self.camera_intrinsics_hw[0]
@@ -371,7 +371,7 @@ class SSDNeRFGUI:
                     writer.close()
 
                 with dpg.file_dialog(directory_selector=False, show=False, width=450, height=400,
-                                     callback=callback_save_mesh, tag='save_mesh_dialog'):
+                                     callback=callback_export_mesh, tag='export_mesh_dialog'):
                     dpg.add_file_extension('.stl')
                     dpg.add_file_extension('.dict')
                     dpg.add_file_extension('.json')
@@ -387,11 +387,13 @@ class SSDNeRFGUI:
                     dpg.add_file_extension('.')
 
                 with dpg.file_dialog(directory_selector=False, show=False, width=450, height=400,
-                                     callback=callback_save_video, tag='save_video_dialog'):
+                                     callback=callback_export_video, tag='export_video_dialog'):
                     dpg.add_file_extension('.mp4')
 
+                dpg.add_button(label='Visualize code', callback=lambda: dpg.show_item('save_code_dialog'))
+
                 with dpg.group(horizontal=True):
-                    dpg.add_button(label='Save mesh', callback=lambda: dpg.show_item('save_mesh_dialog'))
+                    dpg.add_button(label='Export mesh', callback=lambda: dpg.show_item('export_mesh_dialog'))
                     dpg.add_input_int(
                         label='res', width=100, min_value=4, max_value=1024, min_clamped=True, max_clamped=True,
                         default_value=self.mesh_resolution, callback=callback_set_mesh_resolution)
@@ -399,10 +401,8 @@ class SSDNeRFGUI:
                         label='thr', width=100, min_value=0, max_value=1000, min_clamped=True, max_clamped=True,
                         format='%.2f', default_value=self.mesh_threshold, callback=callback_set_mesh_threshold)
 
-                dpg.add_button(label='Visualize code', callback=lambda: dpg.show_item('save_code_dialog'))
-
                 with dpg.group(horizontal=True):
-                    dpg.add_button(label='Save video', callback=lambda: dpg.show_item('save_video_dialog'))
+                    dpg.add_button(label='Export video', callback=lambda: dpg.show_item('export_video_dialog'))
                     dpg.add_input_int(
                         label='res', width=100, min_value=4, max_value=1024, min_clamped=True, max_clamped=True,
                         default_value=self.video_res, callback=callback_set_video_resolution)
@@ -576,7 +576,7 @@ class SSDNeRFGUI:
             self.test_step()
             dpg.render_dearpygui_frame()
 
-    def save_mesh(self, save_path):
+    def export_mesh(self, save_path):
         print(f'==> Saving mesh to {save_path}')
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         vertices, triangles = extract_geometry(

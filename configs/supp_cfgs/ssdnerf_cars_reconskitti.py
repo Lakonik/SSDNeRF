@@ -110,7 +110,7 @@ data = dict(
         data_prefix='data/shapenet/cars_kitti',
         specific_observation_idcs=[0],
         cache_path='data/shapenet/cars_kitti_cache.pkl',
-        test_pose_override='data/shapenet/cars_test/1a3782ae4bd711b66b418c7d9fedcaa9'),
+        test_pose_override='demo/camera_spiral_cars'),
     train_dataloader=dict(split_data=True))
 lr_config = dict(
     policy='Fixed',

@@ -68,13 +68,12 @@ class ShapeNetSRN(Dataset):
         self.load_scenes()
 
         if self.test_pose_override is not None:
-            image_dir = os.path.join(self.test_pose_override, 'rgb')
-            image_names = os.listdir(image_dir)
-            image_names.sort()
+            pose_dir = os.path.join(self.test_pose_override, 'pose')
+            pose_names = os.listdir(pose_dir)
+            pose_names.sort()
             poses_list = []
-            for image_name in image_names:
-                pose_path = os.path.join(
-                    self.test_pose_override, 'pose/' + os.path.splitext(image_name)[0] + '.txt')
+            for pose_name in pose_names:
+                pose_path = os.path.join(pose_dir, pose_name)
                 c2w = torch.FloatTensor(load_pose(pose_path))
                 cam_to_ndc = torch.cat(
                     [c2w[:3, :3], (c2w[:3, 3:] - self.center[:, None]) / self.radius[:, None]], dim=-1)

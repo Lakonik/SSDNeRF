@@ -24,15 +24,17 @@ LPIPS_BS = 32
 
 @MODULES.register_module()
 class TanhCode(nn.Module):
-    def __init__(self, scale=1.0):
+    def __init__(self, scale=1.0, eps=1e-5):
         super(TanhCode, self).__init__()
         self.scale = scale
+        self.eps = eps
 
     def forward(self, code_, update_stats=False):
         return code_.tanh() if self.scale == 1 else code_.tanh() * self.scale
 
     def inverse(self, code):
-        return code.atanh() if self.scale == 1 else (code / self.scale).atanh()
+        return code.clamp(min=-1 + self.eps, max=1 - self.eps).atanh() if self.scale == 1 \
+            else (code / self.scale).clamp(min=-1 + self.eps, max=1 - self.eps).atanh()
 
 
 @MODULES.register_module()

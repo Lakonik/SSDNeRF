@@ -1,4 +1,13 @@
+import os
 name = 'ssdnerf_cars_uncond'
+
+data_path = '/net/tscratch/people/plgmarzol/SSDNeRF_data/shapenet'
+
+cache_path = os.getcwd()
+cache_path = os.path.dirname(cache_path)
+cache_path = os.path.join(cache_path, "SSDNeRF_data", "shapenet")
+if not os.path.exists(cache_path):
+    os.makedirs(cache_path)
 
 model = dict(
     type='DiffusionNeRF',
@@ -97,20 +106,20 @@ data = dict(
     workers_per_gpu=4,
     train=dict(
         type=dataset_type,
-        data_prefix='/net/tscratch/people/plgmarzol/SSDNeRF_data/data/shapenet/cars_train',
-        cache_path='/net/tscratch/people/plgpiotrwojcik/SSDNeRF_data/data/shapenet/cars_train_cache.pkl'),
+        data_prefix= data_path + '/cars_train',
+        cache_path= cache_path + '/cars_train_cache.pkl'),
     val_uncond=dict(
         type=dataset_type,
-        data_prefix='/net/tscratch/people/plgmarzol/SSDNeRF_data/data/shapenet/cars_test',
+        data_prefix= data_path+ '/cars_test',
         load_imgs=False,
         num_test_imgs=251,
         scene_id_as_name=True,
-        cache_path='/net/tscratch/people/plgpiotrwojcik/SSDNeRF_data/data/shapenet/cars_test_cache.pkl'),
+        cache_path=cache_path + '/cars_test_cache.pkl'),
     val_cond=dict(
         type=dataset_type,
-        data_prefix='/net/tscratch/people/plgmarzol/SSDNeRF_data/data/shapenet/cars_test',
+        data_prefix= data_path + '/cars_test',
         specific_observation_idcs=[64],
-        cache_path='/net/tscratch/people/plgpiotrwojcik/SSDNeRF_data/data/shapenet/cars_test_cache.pkl'),
+        cache_path= cache_path + '/cars_test_cache.pkl'),
     train_dataloader=dict(split_data=True))
 lr_config = dict(  # decay schedule of diffusion & decoder lr
     policy='step',

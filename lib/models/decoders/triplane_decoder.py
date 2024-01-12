@@ -4,12 +4,83 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 from mmcv.cnn import xavier_init, constant_init
 from mmgen.models.builder import MODULES
 
 from .base_volume_renderer import VolumeRenderer
 from lib.ops import SHEncoder, TruncExp
+
+
+class ImagePlanes(torch.nn.Module):
+    def __init__(self, focal, poses, images, count=np.inf, device='cuda'):
+        super(ImagePlanes, self).__init__()
+
+        self.pose_matrices = []
+        self.K_matrices = []
+        self.images = []
+
+        self.focal = focal
+        for i in range(min(count, poses.shape[0])):
+            M = poses[i]
+            M = torch.from_numpy(M)
+            M = M @ torch.Tensor([[-1, 0, 0, 0],
+                                  [0, 1, 0, 0],
+                                  [0, 0, 1, 0],
+                                  [0, 0, 0, 1]]).to(M.device)
+            M = torch.inverse(M)
+            M = M[0:3]
+            self.pose_matrices.append(M)
+
+            image = images[i]
+            # image = torch.from_numpy(image)
+            self.images.append(image)#.permute(2, 0, 1))
+            self.size = float(image.shape[0])
+            K = torch.Tensor(
+                [[1.0254, 0, 0.5],
+                 [0, 1.0254, 0.5],
+                 [0, 0, 1]])
+            self.K_matrices.append(K)
+
+        self.pose_matrices = torch.stack(self.pose_matrices).to(device)
+        self.K_matrices = torch.stack(self.K_matrices).to(device)
+        self.image_plane = torch.stack(self.images).to(device)
+
+    def forward(self, points=None):
+        if points.shape[0] == 1:
+            points = points[0]
+
+        points = torch.concat([points, torch.ones(points.shape[0], 1).to(points.device)], 1).to(points.device)
+        points_in_camera_coords = self.pose_matrices @ points.T
+        # camera-origin distance is equal to 1 in points_in_camera_coords
+        ps = self.K_matrices @ points_in_camera_coords
+        pixels = (ps / ps[:, None, 2])[:, 0:2, :]
+        # pixels = pixels / self.size
+        # print("Pixels")
+        # p = pixels.flatten()
+        # print(pixels.min(), torch.quantile(p, 0.05),torch.quantile(p, 0.5), pixels.max())
+        pixels = torch.clamp(pixels, 0, 1)
+        # print("Pixels")
+        # print(pixels)
+        pixels = pixels * 2.0 - 1.0
+        pixels = pixels.permute(0, 2, 1)
+
+        feats = []
+        for img in range(self.image_plane.shape[0]):
+            feat = torch.nn.functional.grid_sample(
+                self.image_plane[img].unsqueeze(0),
+                pixels[img].unsqueeze(0).unsqueeze(0), mode='bilinear', padding_mode='zeros', align_corners=False)
+            feats.append(feat)
+        feats = torch.stack(feats).squeeze(1)
+        pixels = pixels.permute(1, 0, 2)
+        pixels = pixels.flatten(1)
+        feats = feats.permute(2, 3, 0, 1)
+        feats = feats.flatten(2)
+        # print(feats[0].shape) # torch.Size([262144, 96])
+        # print(pixels.shape) # torch.Size([262144, 6])
+        feats = torch.cat((feats[0], pixels), 1)
+        return feats
 
 
 @MODULES.register_module()
@@ -158,6 +229,8 @@ class TriPlaneDecoder(VolumeRenderer):
                     num_points_per_scene, -1)
                 print('!!!!')
                 print(point_code_single.shape)
+                print(xyzs.shape)
+                print(dirs.shape)
                 num_points.append(num_points_per_scene)
                 point_code.append(point_code_single)
             point_code = torch.cat(point_code, dim=0) if len(point_code) > 1 \

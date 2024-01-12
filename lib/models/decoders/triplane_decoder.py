@@ -229,8 +229,8 @@ class TriPlaneDecoder(VolumeRenderer):
                     num_points_per_scene, -1)
                 print('!!!!')
                 print(point_code_single.shape)
-                print(xyzs.shape)
-                print(dirs.shape)
+                print(xyzs[0].shape)
+                print(dirs[0].shape)
                 num_points.append(num_points_per_scene)
                 point_code.append(point_code_single)
             point_code = torch.cat(point_code, dim=0) if len(point_code) > 1 \

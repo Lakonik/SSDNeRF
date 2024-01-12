@@ -152,6 +152,8 @@ class TriPlaneDecoder(VolumeRenderer):
                     self.xyz_transform(xyzs_single),
                     mode=self.interp_mode, padding_mode='border', align_corners=False
                 ).squeeze(-2)
+                print('!!!!--!!!!')
+                print(point_code_single.permute(2, 1, 0).shape)
                 point_code_single = point_code_single.permute(2, 1, 0).reshape(
                     num_points_per_scene, -1)
                 print('!!!!')

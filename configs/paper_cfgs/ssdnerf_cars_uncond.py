@@ -1,7 +1,7 @@
 import os
 name = 'ssdnerf_cars_uncond'
 
-DATA_PATH = '/net/tscratch/people/plgmarzol/SSDNeRF_data/shapenet'
+DATA_PATH = '/data/pwojcik/SSDNeRF/data/shapenet'
 
 cache_path = os.getcwd()
 cache_path = os.path.dirname(cache_path)

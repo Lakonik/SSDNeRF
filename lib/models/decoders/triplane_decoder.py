@@ -154,6 +154,8 @@ class TriPlaneDecoder(VolumeRenderer):
                 ).squeeze(-2)
                 point_code_single = point_code_single.permute(2, 1, 0).reshape(
                     num_points_per_scene, -1)
+                print('!!!!')
+                print(point_code_single.shape)
                 num_points.append(num_points_per_scene)
                 point_code.append(point_code_single)
             point_code = torch.cat(point_code, dim=0) if len(point_code) > 1 \

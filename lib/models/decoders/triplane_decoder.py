@@ -305,6 +305,7 @@ class TriPlaneDecoder(VolumeRenderer):
 
 
             print('!!!!--!!!!')
+            print(point_code_single.shape)
             print(point_code_single.permute(2, 1, 0).shape)
             point_code_single = point_code_single.permute(2, 1, 0).reshape(
                 num_points_per_scene, -1)

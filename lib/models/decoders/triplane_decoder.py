@@ -11,7 +11,69 @@ from mmgen.models.builder import MODULES
 
 from .base_volume_renderer import VolumeRenderer
 from lib.ops import SHEncoder, TruncExp
+import math
 
+
+def cart2sph(x,y,z):
+    XsqPlusYsq = x**2 + y**2
+    elev = math.atan2(z,math.sqrt(XsqPlusYsq))     # theta
+    az = math.atan2(y,x)                           # phi
+    return elev, az
+
+def fibonacci_sphere(samples=1000):
+
+    points = []
+    phi = math.pi * (math.sqrt(5.) - 1.)  # golden angle in radians
+
+    for i in range(samples):
+        y = 1 - (i / float(samples - 1)) * 2  # y goes from 1 to -1
+        radius = math.sqrt(1 - y * y)  # radius at y
+
+        theta = phi * i  # golden angle increment
+
+        x = math.cos(theta) * radius
+        z = math.sin(theta) * radius
+
+        points.append(cart2sph(x,y,z))
+
+    return points
+
+
+trans_t = lambda t : torch.Tensor([
+    [1,0,0,0],
+    [0,1,0,0],
+    [0,0,1,t],
+    [0,0,0,1]]).float()
+
+rot_phi = lambda phi : torch.Tensor([
+    [1,0,0,0],
+    [0,np.cos(phi),-np.sin(phi),0],
+    [0,np.sin(phi), np.cos(phi),0],
+    [0,0,0,1]]).float()
+
+rot_theta = lambda th : torch.Tensor([
+    [np.cos(th),0,-np.sin(th),0],
+    [0,1,0,0],
+    [np.sin(th),0, np.cos(th),0],
+    [0,0,0,1]]).float()
+
+rot_eta = lambda eta : torch.Tensor([
+    [np.cos(eta),np.sin(eta),0,0],
+    [-np.sin(eta), np.cos(eta),0,0],
+    [0,0,1,0],
+    [0,0,0,1]]).float()
+
+def pose_spherical(theta, phi, radius):
+    c2w = trans_t(radius)
+    c2w = rot_phi(phi/180.*np.pi) @ c2w
+    c2w = rot_theta(theta/180.*np.pi) @ c2w
+    eta = 180
+    c2w = rot_eta(eta / 180. * np.pi) @ c2w
+    c2w = torch.Tensor(np.array([[-1,0,0,0],
+                                 [0,0,1,0],
+                                 [0,1,0,0],
+                                 [0,0,0,1]])) @ c2w
+    return c2w.numpy()
 
 class ImagePlanes(torch.nn.Module):
     def __init__(self, focal, poses, images, count=np.inf, device='cuda'):
@@ -95,7 +157,7 @@ class TriPlaneDecoder(VolumeRenderer):
     def __init__(self,
                  *args,
                  interp_mode='bilinear',
-                 base_layers=[3 * 32, 128],
+                 base_layers=[3 * 6, 128],
                  density_layers=[128, 1],
                  color_layers=[128, 128, 3],
                  use_dir_enc=True,
@@ -172,20 +234,20 @@ class TriPlaneDecoder(VolumeRenderer):
         if self.dir_net is not None:
             constant_init(self.dir_net[-1], 0)
 
-    def xyz_transform(self, xyz):
-        if self.flip_z:
-            xyz = torch.cat([xyz[..., :2], -xyz[..., 2:]], dim=-1)
-        xy = xyz[..., :2]
-        xz = xyz[..., ::2]
-        yz = xyz[..., 1:]
-        if xyz.dim() == 2:
-            out = torch.stack([xy, xz, yz], dim=0).unsqueeze(1)  # (3, 1, num_points, 2)
-        elif xyz.dim() == 3:
-            num_scenes, num_points, _ = xyz.size()
-            out = torch.stack([xy, xz, yz], dim=1).reshape(num_scenes * 3, 1, num_points, 2)
-        else:
-            raise ValueError
-        return out
+    # def xyz_transform(self, xyz):
+    #     if self.flip_z:
+    #         xyz = torch.cat([xyz[..., :2], -xyz[..., 2:]], dim=-1)
+    #     xy = xyz[..., :2]
+    #     xz = xyz[..., ::2]
+    #     yz = xyz[..., 1:]
+    #     if xyz.dim() == 2:
+    #         out = torch.stack([xy, xz, yz], dim=0).unsqueeze(1)  # (3, 1, num_points, 2)
+    #     elif xyz.dim() == 3:
+    #         num_scenes, num_points, _ = xyz.size()
+    #         out = torch.stack([xy, xz, yz], dim=1).reshape(num_scenes * 3, 1, num_points, 2)
+    #     else:
+    #         raise ValueError
+    #     return out
 
     def point_decode(self, xyzs, dirs, code, density_only=False):
         """
@@ -199,42 +261,65 @@ class TriPlaneDecoder(VolumeRenderer):
             code = self.code_dropout(
                 code.reshape(num_scenes * 3, n_channels, h, w)
             ).reshape(num_scenes, 3, n_channels, h, w)
+
+
         if self.scene_base is not None:
             code = code + self.scene_base
-        if isinstance(xyzs, torch.Tensor):
-            assert xyzs.dim() == 3
-            num_points = xyzs.size(-2)
-            point_code = F.grid_sample(
-                code.reshape(num_scenes * 3, -1, h, w),
-                self.xyz_transform(xyzs),
-                mode=self.interp_mode, padding_mode='border', align_corners=False
-            ).reshape(num_scenes, 3, -1, num_points)
-            point_code = point_code.permute(0, 3, 2, 1).reshape(
-                num_scenes * num_points, -1)
-            num_points = [num_points] * num_scenes
-        else:
-            num_points = []
-            point_code = []
-            for code_single, xyzs_single in zip(code, xyzs):
-                num_points_per_scene = xyzs_single.size(-2)
-                # (3, code_chn, num_points_per_scene)
-                point_code_single = F.grid_sample(
-                    code_single,
-                    self.xyz_transform(xyzs_single),
-                    mode=self.interp_mode, padding_mode='border', align_corners=False
-                ).squeeze(-2)
-                print('!!!!--!!!!')
-                print(point_code_single.permute(2, 1, 0).shape)
-                point_code_single = point_code_single.permute(2, 1, 0).reshape(
-                    num_points_per_scene, -1)
-                print('!!!!')
-                print(point_code_single.shape)
-                print(xyzs[0].shape)
-                print(dirs[0].shape)
-                num_points.append(num_points_per_scene)
-                point_code.append(point_code_single)
-            point_code = torch.cat(point_code, dim=0) if len(point_code) > 1 \
-                else point_code[0]
+
+
+        # if isinstance(xyzs, torch.Tensor):
+        #     assert xyzs.dim() == 3
+        #     num_points = xyzs.size(-2)
+        #     point_code = F.grid_sample(
+        #         code.reshape(num_scenes * 3, -1, h, w),
+        #         self.xyz_transform(xyzs),
+        #         mode=self.interp_mode, padding_mode='border', align_corners=False
+        #     ).reshape(num_scenes, 3, -1, num_points)
+        #     point_code = point_code.permute(0, 3, 2, 1).reshape(
+        #         num_scenes * num_points, -1)
+        #     num_points = [num_points] * num_scenes
+
+        # else:
+
+        num_points = []
+        point_code = []
+        image_planes = []
+
+        for code_single, xyzs_single in zip(code, xyzs):
+            num_points_per_scene = xyzs_single.size(-2)
+            # (3, code_chn, num_points_per_scene)
+            # point_code_single = F.grid_sample(
+            #     code_single,
+            #     self.xyz_transform(xyzs_single),
+            #     mode=self.interp_mode, padding_mode='border', align_corners=False
+            # ).squeeze(-2)
+
+            poses = [pose_spherical(theta, phi, -1.307) for phi, theta in fibonacci_sphere(6)]
+
+            image_plane = ImagePlanes(focal=torch.Tensor([10.0]),
+                                      poses=np.stack(poses),
+                                      images=code.view(6, 3, code.shape[-2], code.shape[-1]))
+
+            image_planes.append(image_plane)
+            point_code_single = image_plane(xyzs_single) #### Czy rozmiary beda sie zgadzac???
+
+
+            print('!!!!--!!!!')
+            print(point_code_single.permute(2, 1, 0).shape)
+            point_code_single = point_code_single.permute(2, 1, 0).reshape(
+                num_points_per_scene, -1)
+            print('!!!!')
+            print(point_code_single.shape)
+            print(xyzs[0].shape)
+            print(dirs[0].shape)
+            num_points.append(num_points_per_scene)
+            point_code.append(point_code_single)
+
+
+        point_code = torch.cat(point_code, dim=0) if len(point_code) > 1 \
+            else point_code[0]
+
+
         base_x = self.base_net(point_code)
         base_x_act = self.base_activation(base_x)
         sigmas = self.density_net(base_x_act).squeeze(-1)

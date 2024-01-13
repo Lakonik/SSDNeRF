@@ -128,6 +128,7 @@ class ImagePlanes(torch.nn.Module):
         pixels = pixels * 2.0 - 1.0
         pixels = pixels.permute(0, 2, 1)
 
+        print('__')
         print(pixels.shape)
         print(self.image_plane.shape)
 

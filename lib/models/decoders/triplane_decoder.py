@@ -298,7 +298,7 @@ class TriPlaneDecoder(VolumeRenderer):
 
             image_plane = ImagePlanes(focal=torch.Tensor([10.0]),
                                       poses=np.stack(poses),
-                                      images=code.view(6, 3, code.shape[-2], code.shape[-1]))
+                                      images=code_single.view(6, 3, code.shape[-2], code.shape[-1]))
 
             image_planes.append(image_plane)
             point_code_single = image_plane(xyzs_single) #### Czy rozmiary beda sie zgadzac???

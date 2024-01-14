@@ -113,6 +113,7 @@ class ImagePlanes(torch.nn.Module):
         if points.shape[0] == 1:
             points = points[0]
 
+
         points = torch.concat([points, torch.ones(points.shape[0], 1).to(points.device)], 1).to(points.device)
         points_in_camera_coords = self.pose_matrices @ points.T
         # camera-origin distance is equal to 1 in points_in_camera_coords
@@ -128,20 +129,27 @@ class ImagePlanes(torch.nn.Module):
         pixels = pixels * 2.0 - 1.0
         pixels = pixels.permute(0, 2, 1)
 
+        print(pixels.shape)
+        print(self.image_plane.shape)
+
+        num_points = pixels.shape[1]
+
         feats = []
         for img in range(self.image_plane.shape[0]):
             feat = torch.nn.functional.grid_sample(
                 self.image_plane[img].unsqueeze(0),
                 pixels[img].unsqueeze(0).unsqueeze(0), mode='bilinear', padding_mode='zeros', align_corners=False)
             feats.append(feat)
+
         feats = torch.stack(feats).squeeze(1)
         pixels = pixels.permute(1, 0, 2)
-        pixels = pixels.flatten(1)
-        feats = feats.permute(2, 3, 0, 1)
-        feats = feats.flatten(2)
+        # pixels = pixels.flatten(1)
+
+        feats = feats.permute(2, 3, 0, 1).squeeze(0)
+        feats = feats.reshape(num_points, -1)
         # print(feats[0].shape) # torch.Size([262144, 96])
         # print(pixels.shape) # torch.Size([262144, 6])
-        feats = torch.cat((feats[0], pixels), 1)
+        # feats = torch.cat((feats[0], pixels), 1)
         return feats
 
 
@@ -304,21 +312,20 @@ class TriPlaneDecoder(VolumeRenderer):
             point_code_single = image_plane(xyzs_single) #### Czy rozmiary beda sie zgadzac???
 
 
-            print('!!!!--!!!!')
-            print(point_code_single.permute(2, 1, 0).shape)
-            point_code_single = point_code_single.permute(2, 1, 0).reshape(
-                num_points_per_scene, -1)
-            print('!!!!')
-            print(point_code_single.shape)
-            print(xyzs[0].shape)
-            print(dirs[0].shape)
+            # print('!!!!--!!!!')
+            # print(point_code_single.permute(2, 1, 0).shape)
+            # # point_code_single = point_code_single.permute(2, 1, 0).reshape(
+            # #     num_points_per_scene, -1)
+            # print('!!!!')
+            # print(point_code_single.shape)
+            # print(xyzs[0].shape)
+            # print(dirs[0].shape)
             num_points.append(num_points_per_scene)
             point_code.append(point_code_single)
 
 
         point_code = torch.cat(point_code, dim=0) if len(point_code) > 1 \
             else point_code[0]
-
 
         base_x = self.base_net(point_code)
         base_x_act = self.base_activation(base_x)
@@ -338,6 +345,8 @@ class TriPlaneDecoder(VolumeRenderer):
             rgbs = self.color_net(color_in)
             if self.sigmoid_saturation > 0:
                 rgbs = rgbs * (1 + self.sigmoid_saturation * 2) - self.sigmoid_saturation
+
+
         return sigmas, rgbs, num_points
 
     def point_density_decode(self, xyzs, code, **kwargs):

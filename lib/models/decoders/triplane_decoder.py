@@ -149,7 +149,7 @@ class ImagePlanes(torch.nn.Module):
         feats = feats.reshape(num_points, -1)
         # print(feats[0].shape) # torch.Size([262144, 96])
         # print(pixels.shape) # torch.Size([262144, 6])
-        # feats = torch.cat((feats[0], pixels), 1)
+        feats = torch.cat((feats, pixels), 1)
         return feats
 
 
@@ -310,7 +310,6 @@ class TriPlaneDecoder(VolumeRenderer):
 
             image_planes.append(image_plane)
             point_code_single = image_plane(xyzs_single) #### Czy rozmiary beda sie zgadzac???
-
 
 
             # print('!!!!--!!!!')

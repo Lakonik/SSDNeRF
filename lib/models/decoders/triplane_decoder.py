@@ -143,16 +143,12 @@ class ImagePlanes(torch.nn.Module):
 
         feats = torch.stack(feats).squeeze(1)
         pixels = pixels.permute(1, 0, 2)
-        # pixels = pixels.flatten(1)
+        pixels = pixels.flatten(1)
 
         feats = feats.permute(2, 3, 0, 1).squeeze(0)
         feats = feats.reshape(num_points, -1)
         # print(feats[0].shape) # torch.Size([262144, 96])
         # print(pixels.shape) # torch.Size([262144, 6])
-
-        print('!!!')
-        print(feats.shape)
-        print(pixels.shape)
 
         feats = torch.cat((feats, pixels), 1)
         return feats

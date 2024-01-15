@@ -149,6 +149,11 @@ class ImagePlanes(torch.nn.Module):
         feats = feats.reshape(num_points, -1)
         # print(feats[0].shape) # torch.Size([262144, 96])
         # print(pixels.shape) # torch.Size([262144, 6])
+
+        print('!!!')
+        print(feats.shape)
+        print(pixels.shape)
+
         feats = torch.cat((feats, pixels), 1)
         return feats
 

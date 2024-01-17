@@ -296,6 +296,9 @@ class TriPlaneDecoder(VolumeRenderer):
         image_planes = []
 
         for code_single, xyzs_single in zip(code, xyzs):
+            print('!!!!!!!')
+            print(point_code_single.shape)
+
             num_points_per_scene = xyzs_single.size(-2)
             # (3, code_chn, num_points_per_scene)
             # point_code_single = F.grid_sample(
@@ -312,9 +315,6 @@ class TriPlaneDecoder(VolumeRenderer):
 
             image_planes.append(image_plane)
             point_code_single = image_plane(xyzs_single) #### Czy rozmiary beda sie zgadzac???
-
-            print('!!!!!!!')
-            print(point_code_single.shape)
 
 
             # print('!!!!--!!!!')

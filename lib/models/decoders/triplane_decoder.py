@@ -313,6 +313,9 @@ class TriPlaneDecoder(VolumeRenderer):
             image_planes.append(image_plane)
             point_code_single = image_plane(xyzs_single) #### Czy rozmiary beda sie zgadzac???
 
+            print('!!!!!!!')
+            print(point_code_single.shape)
+
 
             # print('!!!!--!!!!')
             # print(point_code_single.permute(2, 1, 0).shape)

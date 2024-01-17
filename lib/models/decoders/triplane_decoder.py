@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 
 import torch
 import torch.nn as nn
+import pickle
 import torch.nn.functional as F
 import numpy as np
 
@@ -307,7 +308,7 @@ class TriPlaneDecoder(VolumeRenderer):
 
             image_plane = ImagePlanes(focal=torch.Tensor([10.0]),
                                       poses=np.stack(poses),
-                                      images=code_single.view(6, 3, code.shape[-2], code.shape[-1]))
+                                      images=code_single.view(32, 3, code.shape[-2], code.shape[-1]))
 
             image_planes.append(image_plane)
             point_code_single = image_plane(xyzs_single) #### Czy rozmiary beda sie zgadzac???
@@ -358,6 +359,9 @@ class TriPlaneDecoder(VolumeRenderer):
     def visualize(self, code, scene_name, viz_dir, code_range=[-1, 1]):
         num_scenes, _, num_chn, h, w = code.size()
         code_viz = code.cpu().numpy()
+        for code_viz_single, scene_name_single in zip(code_viz, scene_name):
+            with open(os.path.join(viz_dir, 'scene_' + scene_name_single + '.pkl'), 'wb') as file:
+                pickle.dump(code_viz_single, file)
         if not self.flip_z:
             code_viz = code_viz[..., ::-1, :]
         code_viz = code_viz.transpose(0, 1, 3, 2, 4).reshape(num_scenes, 3 * h, num_chn * w)

@@ -11,8 +11,8 @@ if not os.path.exists(cache_path):
 
 model = dict(
     type='DiffusionNeRF',
-    code_size=(3, 6, 128, 128),
-    code_reshape=(18, 128, 128),
+    code_size=(3, 32, 128, 128),
+    code_reshape=(96, 128, 128),
     code_activation=dict(
         type='TanhCode',
         scale=2),
@@ -48,7 +48,7 @@ model = dict(
     decoder=dict(
         type='TriPlaneDecoder',
         interp_mode='bilinear',
-        base_layers=[6 * 5, 64],
+        base_layers=[32 * 5, 64],
         density_layers=[64, 1],
         color_layers=[64, 3],
         use_dir_enc=True,
@@ -70,7 +70,7 @@ model = dict(
     cache_size=2458)  # number of training scenes
 
 save_interval = 5000
-eval_interval = 20000
+eval_interval = 5000
 code_dir = 'cache/' + name + '/code'
 work_dir = 'work_dirs/' + name
 

@@ -11,8 +11,8 @@ if not os.path.exists(cache_path):
 
 model = dict(
     type='DiffusionNeRF',
-    code_size=(3, 32, 128, 128),
-    code_reshape=(96, 128, 128),
+    code_size=(3, 16, 128, 128),
+    code_reshape=(48, 128, 128),
     code_activation=dict(
         type='TanhCode',
         scale=2),
@@ -48,7 +48,7 @@ model = dict(
     decoder=dict(
         type='TriPlaneDecoder',
         interp_mode='bilinear',
-        base_layers=[32 * 5, 64],
+        base_layers=[16 * 5, 64],
         density_layers=[64, 1],
         color_layers=[64, 3],
         use_dir_enc=True,

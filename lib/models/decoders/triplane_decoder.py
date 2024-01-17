@@ -134,6 +134,9 @@ class ImagePlanes(torch.nn.Module):
 
         num_points = pixels.shape[1]
 
+        print('!!!--!!!')
+        print(self.image_plane.shape)
+
         feats = []
         for img in range(self.image_plane.shape[0]):
             feat = torch.nn.functional.grid_sample(

@@ -114,7 +114,6 @@ class ImagePlanes(torch.nn.Module):
         if points.shape[0] == 1:
             points = points[0]
 
-
         points = torch.concat([points, torch.ones(points.shape[0], 1).to(points.device)], 1).to(points.device)
         points_in_camera_coords = self.pose_matrices @ points.T
         # camera-origin distance is equal to 1 in points_in_camera_coords
@@ -152,6 +151,8 @@ class ImagePlanes(torch.nn.Module):
         # print(pixels.shape) # torch.Size([262144, 6])
 
         feats = torch.cat((feats, pixels), 1)
+        print('!!!!!!!!!')
+        print(feats.shape)
         return feats
 
 
@@ -296,8 +297,6 @@ class TriPlaneDecoder(VolumeRenderer):
         image_planes = []
 
         for code_single, xyzs_single in zip(code, xyzs):
-            print('!!!!!!!')
-            print(code_single.shape)
 
             num_points_per_scene = xyzs_single.size(-2)
             # (3, code_chn, num_points_per_scene)

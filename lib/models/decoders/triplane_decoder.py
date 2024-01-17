@@ -134,9 +134,6 @@ class ImagePlanes(torch.nn.Module):
 
         num_points = pixels.shape[1]
 
-        print('!!!--!!!')
-        print(self.image_plane.shape)
-
         feats = []
         for img in range(self.image_plane.shape[0]):
             feat = torch.nn.functional.grid_sample(
@@ -152,11 +149,6 @@ class ImagePlanes(torch.nn.Module):
         feats = feats.reshape(num_points, -1)
         # print(feats[0].shape) # torch.Size([262144, 96])
         # print(pixels.shape) # torch.Size([262144, 6])
-
-        print('!!!!!!!!!')
-        print(feats.shape)
-        print(pixels.shape)
-        print()
 
         feats = torch.cat((feats, pixels), 1)
         return feats
@@ -312,7 +304,7 @@ class TriPlaneDecoder(VolumeRenderer):
             #     mode=self.interp_mode, padding_mode='border', align_corners=False
             # ).squeeze(-2)
 
-            poses = [pose_spherical(theta, phi, -1.307) for phi, theta in fibonacci_sphere(6)]
+            poses = [pose_spherical(theta, phi, -1.307) for phi, theta in fibonacci_sphere(32)]
 
             image_plane = ImagePlanes(focal=torch.Tensor([10.0]),
                                       poses=np.stack(poses),
@@ -337,8 +329,6 @@ class TriPlaneDecoder(VolumeRenderer):
         point_code = torch.cat(point_code, dim=0) if len(point_code) > 1 \
             else point_code[0]
 
-        print('!!!')
-        print(point_code.shape)
 
         base_x = self.base_net(point_code)
         base_x_act = self.base_activation(base_x)

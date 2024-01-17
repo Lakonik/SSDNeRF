@@ -297,7 +297,7 @@ class TriPlaneDecoder(VolumeRenderer):
 
         for code_single, xyzs_single in zip(code, xyzs):
             print('!!!!!!!')
-            print(point_code_single.shape)
+            print(code_single.shape)
 
             num_points_per_scene = xyzs_single.size(-2)
             # (3, code_chn, num_points_per_scene)

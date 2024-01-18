@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 
 import torch
 import torch.nn as nn
+import pickle
 import torch.nn.functional as F
 import numpy as np
 
@@ -18,6 +19,13 @@ def cart2sph(x,y,z):
     XsqPlusYsq = x**2 + y**2
     elev = math.atan2(z,math.sqrt(XsqPlusYsq))     # theta
     az = math.atan2(y,x)                           # phi
+    elev = elev / np.pi * 180
+    if elev < 0:
+        elev = 360 + elev
+    az = az / np.pi * 180
+    if az < 0:
+        az = 360 + az
+
     return elev, az
 
 def fibonacci_sphere(samples=1000):
@@ -129,8 +137,8 @@ class ImagePlanes(torch.nn.Module):
         pixels = pixels * 2.0 - 1.0
         pixels = pixels.permute(0, 2, 1)
 
-        print(pixels.shape)
-        print(self.image_plane.shape)
+        #print(pixels.shape)
+        #print(self.image_plane.shape)
 
         num_points = pixels.shape[1]
 
@@ -143,13 +151,14 @@ class ImagePlanes(torch.nn.Module):
 
         feats = torch.stack(feats).squeeze(1)
         pixels = pixels.permute(1, 0, 2)
-        # pixels = pixels.flatten(1)
+        pixels = pixels.flatten(1)
 
         feats = feats.permute(2, 3, 0, 1).squeeze(0)
         feats = feats.reshape(num_points, -1)
         # print(feats[0].shape) # torch.Size([262144, 96])
         # print(pixels.shape) # torch.Size([262144, 6])
-        # feats = torch.cat((feats[0], pixels), 1)
+
+        feats = torch.cat((feats, pixels), 1)
         return feats
 
 
@@ -294,6 +303,7 @@ class TriPlaneDecoder(VolumeRenderer):
         image_planes = []
 
         for code_single, xyzs_single in zip(code, xyzs):
+
             num_points_per_scene = xyzs_single.size(-2)
             # (3, code_chn, num_points_per_scene)
             # point_code_single = F.grid_sample(
@@ -357,6 +367,9 @@ class TriPlaneDecoder(VolumeRenderer):
     def visualize(self, code, scene_name, viz_dir, code_range=[-1, 1]):
         num_scenes, _, num_chn, h, w = code.size()
         code_viz = code.cpu().numpy()
+        for code_viz_single, scene_name_single in zip(code_viz, scene_name):
+            with open(os.path.join(viz_dir, 'scene_' + scene_name_single + '.pkl'), 'wb') as file:
+                pickle.dump(code_viz_single, file)
         if not self.flip_z:
             code_viz = code_viz[..., ::-1, :]
         code_viz = code_viz.transpose(0, 1, 3, 2, 4).reshape(num_scenes, 3 * h, num_chn * w)

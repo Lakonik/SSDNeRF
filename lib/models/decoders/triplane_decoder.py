@@ -121,6 +121,7 @@ class ImagePlanes(torch.nn.Module):
         if points.shape[0] == 1:
             points = points[0]
 
+
         points = torch.concat([points, torch.ones(points.shape[0], 1).to(points.device)], 1).to(points.device)
         points_in_camera_coords = self.pose_matrices @ points.T
         # camera-origin distance is equal to 1 in points_in_camera_coords
@@ -335,7 +336,6 @@ class TriPlaneDecoder(VolumeRenderer):
 
         point_code = torch.cat(point_code, dim=0) if len(point_code) > 1 \
             else point_code[0]
-
 
         base_x = self.base_net(point_code)
         base_x_act = self.base_activation(base_x)

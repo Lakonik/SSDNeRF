@@ -19,6 +19,13 @@ def cart2sph(x,y,z):
     XsqPlusYsq = x**2 + y**2
     elev = math.atan2(z,math.sqrt(XsqPlusYsq))     # theta
     az = math.atan2(y,x)                           # phi
+    elev = elev / np.pi * 180
+    if elev < 0:
+        elev = 360 + elev
+    az = az / np.pi * 180
+    if az < 0:
+        az = 360 + az
+
     return elev, az
 
 def fibonacci_sphere(samples=1000):
@@ -304,11 +311,11 @@ class TriPlaneDecoder(VolumeRenderer):
             #     mode=self.interp_mode, padding_mode='border', align_corners=False
             # ).squeeze(-2)
 
-            poses = [pose_spherical(theta, phi, -1.307) for phi, theta in fibonacci_sphere(16)]
+            poses = [pose_spherical(theta, phi, -1.307) for phi, theta in fibonacci_sphere(6)]
 
             image_plane = ImagePlanes(focal=torch.Tensor([10.0]),
                                       poses=np.stack(poses),
-                                      images=code_single.view(16, 3, code.shape[-2], code.shape[-1]))
+                                      images=code_single.view(6, 3, code.shape[-2], code.shape[-1]))
 
             image_planes.append(image_plane)
             point_code_single = image_plane(xyzs_single) #### Czy rozmiary beda sie zgadzac???

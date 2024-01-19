@@ -351,7 +351,7 @@ class TriPlaneDecoder(VolumeRenderer):
                 else:
                     color_in = torch.cat([base_x_act, sh_enc], dim=-1)
             else:
-                color_in = base_x_act
+                color_in = base_x_actf
             rgbs = self.color_net(color_in)
             if self.sigmoid_saturation > 0:
                 rgbs = rgbs * (1 + self.sigmoid_saturation * 2) - self.sigmoid_saturation

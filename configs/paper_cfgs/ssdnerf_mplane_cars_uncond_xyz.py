@@ -1,5 +1,5 @@
 import os
-name = 'ssdnerf_mplane_cars_uncond'
+name = 'ssdnerf_mplane_cars_uncond_xyz'
 
 DATA_PATH = '/net/tscratch/people/plgmarzol/SSDNeRF_data/shapenet'
 
@@ -48,7 +48,7 @@ model = dict(
     decoder=dict(
         type='TriPlaneDecoder',
         interp_mode='bilinear',
-        base_layers=[6 * 5, 64],
+        base_layers=[6 * 8, 64],
         density_layers=[64, 1],
         color_layers=[64, 3],
         use_dir_enc=True,

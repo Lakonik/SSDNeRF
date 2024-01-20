@@ -146,7 +146,8 @@ class ImagePlanes(torch.nn.Module):
         for img in range(self.image_plane.shape[0]):
             feat = torch.nn.functional.grid_sample(
                 self.image_plane[img].unsqueeze(0),
-                pixels[img].unsqueeze(0).unsqueeze(0), mode='bilinear', padding_mode='zeros', align_corners=False)
+                pixels[img].unsqueeze(0).unsqueeze(0),
+                mode='bilinear', padding_mode='zeros', align_corners=False)
             feats.append(feat)
 
         feats = torch.stack(feats).squeeze(1)
@@ -158,7 +159,7 @@ class ImagePlanes(torch.nn.Module):
         # print(feats[0].shape) # torch.Size([262144, 96])
         # print(pixels.shape) # torch.Size([262144, 6])
 
-        feats = torch.cat((feats, pixels), 1)
+        feats = torch.cat((feats, pixels, points), 1)
         return feats
 
 
@@ -319,7 +320,7 @@ class TriPlaneDecoder(VolumeRenderer):
                                       images=code_single.view(6, 3, code.shape[-2], code.shape[-1]))
 
             image_planes.append(image_plane)
-            point_code_single = image_plane(xyzs_single) #### Czy rozmiary beda sie zgadzac???
+            point_code_single = image_plane(xyzs_single)
 
 
             # print('!!!!--!!!!')
@@ -351,7 +352,7 @@ class TriPlaneDecoder(VolumeRenderer):
                 else:
                     color_in = torch.cat([base_x_act, sh_enc], dim=-1)
             else:
-                color_in = base_x_actf
+                color_in = base_x_act
             rgbs = self.color_net(color_in)
             if self.sigmoid_saturation > 0:
                 rgbs = rgbs * (1 + self.sigmoid_saturation * 2) - self.sigmoid_saturation

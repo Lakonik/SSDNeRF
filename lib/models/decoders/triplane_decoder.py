@@ -122,8 +122,8 @@ class ImagePlanes(torch.nn.Module):
             points = points[0]
 
 
-        points = torch.concat([points, torch.ones(points.shape[0], 1).to(points.device)], 1).to(points.device)
-        points_in_camera_coords = self.pose_matrices @ points.T
+        points_camera = torch.concat([points, torch.ones(points.shape[0], 1).to(points.device)], 1).to(points.device)
+        points_in_camera_coords = self.pose_matrices @ points_camera.T
         # camera-origin distance is equal to 1 in points_in_camera_coords
         ps = self.K_matrices @ points_in_camera_coords
         pixels = (ps / ps[:, None, 2])[:, 0:2, :]

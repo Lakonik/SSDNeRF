@@ -195,7 +195,7 @@ runner = dict(
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 load_from = None
-resume_from = None
+resume_from = '/data/pwojcik/ssdnerf_xyz_halfway/iter_470000.pth'
 workflow = [('train', save_interval)]
 use_ddp_wrapper = True
 find_unused_parameters = False

@@ -10,12 +10,11 @@ import numpy as np
 from mmcv.cnn import xavier_init, constant_init
 from mmgen.models.builder import MODULES
 
-from demo.sphere import fibonacci_sphere
 from .base_volume_renderer import VolumeRenderer
 from lib.ops import SHEncoder, TruncExp
 import math
 
-from ...core.utils.multiplane_pos import pose_spherical
+from ...core.utils.multiplane_pos import pose_spherical, fibonacci_sphere
 
 
 class ImagePlanes(torch.nn.Module):

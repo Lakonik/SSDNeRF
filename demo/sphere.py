@@ -33,9 +33,10 @@ def cart2sph(x, y, z):
     return theta, phi, rho
 
 # Visualize poses on a sphere
-print(fibonacci_sphere(32))
+poses = [pose_spherical(theta, phi, -1.3) for theta, phi, _ in fibonacci_sphere(6)]
 
-poses = [pose_spherical(theta, phi, -1.307) for theta, phi, _ in fibonacci_sphere(32)]
+print('!!!')
+print(poses[0])
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')

@@ -33,6 +33,8 @@ class ImagePlanes(torch.nn.Module):
                                   [0, 1, 0, 0],
                                   [0, 0, 1, 0],
                                   [0, 0, 0, 1]]).to(M.device)
+            M = torch.cat([M[:3, :3], (M[:3, 3:] / 0.5)], dim=-1)
+
             M = torch.inverse(M)
             M = M[0:3]
             self.pose_matrices.append(M)

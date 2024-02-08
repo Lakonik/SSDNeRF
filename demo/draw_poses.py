@@ -84,7 +84,7 @@ def read_txt_to_tensor(file_path):
 
 def create_six_digit_strings():
     six_digit_strings = []
-    for i in range(1, 50):
+    for i in range(1, 200, 4):
         six_digit_string = str(i).zfill(6)
         six_digit_strings.append(six_digit_string)
     return six_digit_strings
@@ -97,7 +97,15 @@ def main():
 
     fxy = torch.Tensor([131.2500, 131.2500, 64.00, 64.00])
     intrinsics = fxy.repeat(8, 6, 1)
-    print(intrinsics)
+    #print(intrinsics)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    K = torch.Tensor(
+        [[131.25, 0, 64.0, 0.0],
+         [0, 131.25, 64.0, 0.0],
+         [0, 0, 1.0, 0.0]])
 
     for id in ids:
         file_path = f"/Users/piotrwojcik/PycharmProjects/SSDNeRF/demo/example_pose/pose/{id}.txt"  # Path to your text file
@@ -107,11 +115,22 @@ def main():
         #print(rounded_pose)
 
         point = [0, 0, 0, 1]
-        point_e = [1, 1, 1, 1]
+        point_e = [0, 0, -0.5, 1]
+        point_e2 = [0.0, 0.0, 0.75, 1]
+
         point = torch.tensor(point).float().view(4, 1)
         point_e = torch.tensor(point_e).float().view(4, 1)
+        point_e2 = torch.tensor(point_e2).float().view(4, 1)
         p_car = torch.matmul(pose, point)
         p_car_e = torch.matmul(pose, point_e)
+        p_car_e2 = torch.matmul(pose, point_e2)
+
+        photo = torch.matmul(K, p_car_e)
+        photo2 = torch.matmul(K, p_car_e2)
+        print(photo)
+        print(photo2)
+        print()
+
         xyz_car = p_car.tolist()
         xyz_car = tuple(xyz_car[:3])
 
@@ -120,6 +139,12 @@ def main():
 
         d = (xyz_car[0][0] - xyz_car_e[0][0])**2 + (xyz_car[1][0] - xyz_car_e[1][0])**2 + \
             (xyz_car[2][0] - xyz_car_e[2][0])**2
+
+        ax.quiver(xyz_car[0][0], xyz_car[1][0], xyz_car[2][0],
+                  xyz_car[0][0] - xyz_car_e[0][0],
+                  xyz_car[1][0] - xyz_car_e[1][0],
+                  xyz_car[2][0] - xyz_car_e[2][0], arrow_length_ratio=0.1, color='blue')
+
         #print(round(math.sqrt(d), 4))
 
         poses.append(xyz_car)
@@ -130,21 +155,34 @@ def main():
 
     for p in psphere:
         point = [0, 0, 0, 1]
-        point_e = [1, 1, 1, 1]
+        point_e = [0, 0, -0.5, 1]
         point = torch.tensor(point).float().view(4, 1)
         point_e = torch.tensor(point_e).float().view(4, 1)
 
-        p_car = torch.matmul(torch.tensor(p), point)
-        p_car_e = torch.matmul(torch.tensor(p), point_e)
+        pm = torch.tensor(p)
+        pm = pm @ torch.Tensor([[1, 0, 0, 0],
+                                [0, 1, 0, 0],
+                                [0, 0, 1, 0],
+                                [0, 0, 0, 1]])
+
+        p_car = torch.matmul(pm, point)
+
+        #p_car = torch.matmul(torch.tensor(p), point)
+        p_car_e = torch.matmul(pm, point_e)
         xyz_car = p_car.tolist()
         xyz_car = tuple(xyz_car[:3])
 
         xyz_car_e = p_car_e.tolist()
         xyz_car_e = tuple(xyz_car_e[:3])
 
-        d = (xyz_car[0][0] - xyz_car_e[0][0])**2 + (xyz_car[1][0] - xyz_car_e[1][0])**2 + \
-            (xyz_car[2][0] - xyz_car_e[2][0])**2
-        print(round(math.sqrt(d), 4))
+        #d = (xyz_car[0][0] - xyz_car_e[0][0])**2 + (xyz_car[1][0] - xyz_car_e[1][0])**2 + \
+        #    (xyz_car[2][0] - xyz_car_e[2][0])**2
+        #print(round(math.sqrt(d), 4))
+
+        ax.quiver(xyz_car[0][0], xyz_car[1][0], xyz_car[2][0],
+                  xyz_car[0][0] - xyz_car_e[0][0],
+                  xyz_car[1][0] - xyz_car_e[1][0],
+                  xyz_car[2][0] - xyz_car_e[2][0], arrow_length_ratio=0.1, color='red')
 
         poses_multiplane.append(xyz_car)
 
@@ -172,8 +210,7 @@ def main():
     #     p = p @ torch.Tensor([[-1, 0, 0, 0], [0, 1, 0, 0],  [0, 0, 1, 0], [0, 0, 0, 1]])
     #     p = p.tolist()
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+
 
     for pose in poses:
 

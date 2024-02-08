@@ -72,5 +72,5 @@ def pose_spherical(theta, phi, radius):
                                  [0,1,0,0],
                                  [0,0,0,1]])) @ c2w
 
-    c2w = torch.cat([c2w[:3, :3], c2w[:3, 3:] / 0.5], dim=-1)
+    c2w = torch.cat([c2w[:3, :3], (c2w[:3, 3:] / 0.5)], dim=-1)
     return c2w.numpy()

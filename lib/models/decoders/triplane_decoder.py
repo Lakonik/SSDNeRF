@@ -92,12 +92,12 @@ class ImagePlanes(torch.nn.Module):
         pixels = pixels.flatten(1)
 
         feats = feats.permute(2, 3, 0, 1).squeeze(0)
-        feats = feats.reshape(num_points, -1)
+        feats_solo = feats.reshape(num_points, -1)
         # print(feats[0].shape) # torch.Size([262144, 96])
         # print(pixels.shape) # torch.Size([262144, 6])
 
         feats = torch.cat((feats, pixels, points), 1)
-        return feats
+        return feats, feats_solo
 
 
 @MODULES.register_module()
@@ -257,7 +257,7 @@ class TriPlaneDecoder(VolumeRenderer):
                                       images=code_single.view(6, 3, code.shape[-2], code.shape[-1]))
 
             image_planes.append(image_plane)
-            point_code_single = image_plane(xyzs_single)
+            point_code_single, _ = image_plane(xyzs_single)
 
 
             # print('!!!!--!!!!')

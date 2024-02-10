@@ -18,6 +18,8 @@ from mmgen.models.architectures.common import get_module_device
 from ...core import custom_meshgrid, eval_psnr, eval_ssim_skimage, reduce_mean, rgetattr, rsetattr, extract_geometry, \
     module_requires_grad, get_cam_rays
 from lib.ops import morton3D, morton3D_invert, packbits
+from ...core.utils.multiplane_pos import pose_spherical, fibonacci_sphere
+from lib.models.decoders.triplane_decoder import ImagePlanes
 
 LPIPS_BS = 32
 
@@ -261,6 +263,29 @@ class BaseNeRF(nn.Module):
         return rays_o, rays_d, target_rgbs
 
     @staticmethod
+    def ray_sample_consistency(image_plane, poses, n):
+        h, w = 128, 128
+        fxy = torch.Tensor([131.2500, 131.2500, 64.00, 64.00])
+        rays_per_pose = n/len(poses)
+        rays_o_out, rays_d_out, targets = [], [], []
+        for i, pose in enumerate(poses):
+            rays_o, rays_d = get_cam_rays(pose, fxy, h, w)
+            num_scenes, num_imgs, h, w, _ = rays_o.size()
+            rays_o = rays_o.reshape(num_scenes, num_imgs * h * w, 3)
+            rays_d = rays_d.reshape(num_scenes, num_imgs * h * w, 3)
+            ids = torch.randint(0, rays_o.shape[1], rays_per_pose)
+            rays_o = rays_o[ids]
+            rays_d = rays_d[ids]
+            points = [ray_o + ray_d for ray_o, ray_d in zip(rays_o, rays_d)]
+            _, feautures = image_plane(points)
+
+            rays_o_out.append(rays_o)
+            rays_d_out.append(rays_d)
+            targets.append(feautures[:, 3*i:3*i+3])
+        return rays_o_out, rays_d_out, targets
+
+
+    @staticmethod
     def get_raybatch_inds(cond_imgs, n_inverse_rays):
         device = cond_imgs.device
         num_scenes, num_imgs, h, w, _ = cond_imgs.size()
@@ -414,9 +439,11 @@ class BaseNeRF(nn.Module):
         with module_requires_grad(decoder, False):
             n_inverse_steps = cfg.get('n_inverse_steps', 1000)
             n_inverse_rays = cfg.get('n_inverse_rays', 4096)
+            n_inverse_rays_consistency = 4096
 
             num_scenes, num_imgs, h, w, _ = cond_imgs.size()
             num_scene_pixels = num_imgs * h * w
+
             raybatch_inds, num_raybatch = self.get_raybatch_inds(cond_imgs, n_inverse_rays)
 
             if code_ is None:
@@ -438,6 +465,8 @@ class BaseNeRF(nn.Module):
             if show_pbar:
                 pbar = mmcv.ProgressBar(n_inverse_steps)
 
+            poses = [pose_spherical(theta, phi, -1.3) for phi, theta in fibonacci_sphere(6)]
+
             for inverse_step_id in range(n_inverse_steps):
                 code = self.code_activation(
                     torch.stack(code_, dim=0) if isinstance(code_, list)
@@ -455,6 +484,19 @@ class BaseNeRF(nn.Module):
                     target_rgbs, rays_o, rays_d, dt_gamma, scale_num_ray=num_scene_pixels,
                     cfg=cfg)
 
+
+                code_id = torch.randint(code.shape[0])
+                code_single = code[code_id]
+                image_plane = ImagePlanes(focal=torch.Tensor([10.0]),
+                                      poses=np.stack(poses),
+                                      images=code_single.view(6, 3, code.shape[-2], code.shape[-1]))
+
+                rays_o, rays_d, target_rgbs = self.ray_sample_consistency(image_plane, poses, n_inverse_rays_consistency)
+                out_rgbs_consistency, loss_consistency, loss_dict_consistency = self.loss(
+                    decoder, code_single, density_bitfield,
+                    target_rgbs, rays_o, rays_d, dt_gamma, scale_num_ray=num_scene_pixels,
+                    cfg=cfg)
+
                 if prior_grad is not None:
                     if isinstance(code_, list):
                         for code_single_, prior_grad_single in zip(code_, prior_grad):
@@ -468,6 +510,7 @@ class BaseNeRF(nn.Module):
                     else:
                         code_optimizer.zero_grad()
 
+                loss = loss + loss_consistency
                 loss.backward()
 
                 if isinstance(code_optimizer, list):

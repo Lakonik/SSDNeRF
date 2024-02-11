@@ -439,7 +439,7 @@ class BaseNeRF(nn.Module):
         with module_requires_grad(decoder, False):
             n_inverse_steps = cfg.get('n_inverse_steps', 1000)
             n_inverse_rays = cfg.get('n_inverse_rays', 4096)
-            n_inverse_rays_multi = 4096
+            n_inverse_rays_multi = cfg.get('n_inverse_rays_multi', 4096)
 
             num_scenes, num_imgs, h, w, _ = cond_imgs.size()
             num_scene_pixels = num_imgs * h * w
@@ -485,7 +485,8 @@ class BaseNeRF(nn.Module):
                     cfg=cfg)
 
                 num_imgs_multi = 6
-                imgs_multi = code.reshape(num_scenes, num_imgs_multi, h, w, 3)
+                imgs_multi = code.reshape(num_scenes, num_imgs_multi, 3, h, w)
+                imgs_multi = imgs_multi.permute(0, 1, 3, 4, 2)
 
                 num_scene_pixels_multi = num_imgs_multi * h * w
                 pose_matrices = []
@@ -499,8 +500,8 @@ class BaseNeRF(nn.Module):
                                           [0, 1, 0, 0],
                                           [0, 0, 1, 0],
                                           [0, 0, 0, 1]]).to(M.device)
-                    M = torch.cat(
-                        [M[:3, :3], (M[:3, 3:]) / 0.5], dim=-1)
+                    M = torch.cat([M[:3, :3], (M[:3, 3:]) / 0.5], dim=-1)
+                    M = torch.cat([M, M.new_tensor([[0.0, 0.0, 0.0, 1.0]])], dim=-2)
                     pose_matrices.append(M)
 
                 pose_matrices = torch.stack(pose_matrices).repeat(num_scenes, 1, 1, 1).to(device)

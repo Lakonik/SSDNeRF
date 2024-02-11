@@ -79,6 +79,9 @@ train_cfg = dict(
     density_thresh=0.1,
     extra_scene_step=15,  # -1 + K_in (inner loop iterations)
     n_inverse_rays=2 ** 12,  # ray batch size
+
+    n_inverse_rays_mlti =2 ** 12,  # multiplane ray batch size
+
     n_decoder_rays=2 ** 12,  # ray batch size (used in the final inner iteration that updates the decoder)
     loss_coef=0.1 / (128 * 128),  # 0.1: the exponent in the λ_rend equation; 128 x 128: number of rays per view (image size)
     optimizer=dict(type='Adam', lr=5e-3, weight_decay=0.),

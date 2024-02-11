@@ -439,11 +439,10 @@ class BaseNeRF(nn.Module):
         with module_requires_grad(decoder, False):
             n_inverse_steps = cfg.get('n_inverse_steps', 1000)
             n_inverse_rays = cfg.get('n_inverse_rays', 4096)
-            n_inverse_rays_consistency = 4096
+            n_inverse_rays_multi = 4096
 
             num_scenes, num_imgs, h, w, _ = cond_imgs.size()
             num_scene_pixels = num_imgs * h * w
-
             raybatch_inds, num_raybatch = self.get_raybatch_inds(cond_imgs, n_inverse_rays)
 
             if code_ is None:
@@ -466,6 +465,7 @@ class BaseNeRF(nn.Module):
                 pbar = mmcv.ProgressBar(n_inverse_steps)
 
             poses = [pose_spherical(theta, phi, -1.3) for phi, theta in fibonacci_sphere(6)]
+            poses = np.stack(poses)
 
             for inverse_step_id in range(n_inverse_steps):
                 code = self.code_activation(
@@ -484,17 +484,35 @@ class BaseNeRF(nn.Module):
                     target_rgbs, rays_o, rays_d, dt_gamma, scale_num_ray=num_scene_pixels,
                     cfg=cfg)
 
+                num_imgs_multi = 6
+                imgs_multi = code.reshape(num_scenes, num_imgs_multi, h, w, 3)
 
-                code_id = torch.randint(code.shape[0])
-                code_single = code[code_id]
-                image_plane = ImagePlanes(focal=torch.Tensor([10.0]),
-                                      poses=np.stack(poses),
-                                      images=code_single.view(6, 3, code.shape[-2], code.shape[-1]))
+                num_scene_pixels_multi = num_imgs_multi * h * w
+                pose_matrices = []
+                fxy = torch.Tensor([131.2500, 131.2500, 64.00, 64.00])
+                intrinsics = fxy.repeat(num_scenes, poses.shape[0], 1).to(device)
 
-                rays_o, rays_d, target_rgbs = self.ray_sample_consistency(image_plane, poses, n_inverse_rays_consistency)
-                out_rgbs_consistency, loss_consistency, loss_dict_consistency = self.loss(
-                    decoder, code_single, density_bitfield,
-                    target_rgbs, rays_o, rays_d, dt_gamma, scale_num_ray=num_scene_pixels,
+                for i in range(poses.shape[0]):
+                    M = poses[i]
+                    M = torch.from_numpy(M)
+                    M = M @ torch.Tensor([[-1, 0, 0, 0],
+                                          [0, 1, 0, 0],
+                                          [0, 0, 1, 0],
+                                          [0, 0, 0, 1]]).to(M.device)
+                    M = torch.cat(
+                        [M[:3, :3], (M[:3, 3:]) / 0.5], dim=-1)
+                    pose_matrices.append(M)
+
+                pose_matrices = torch.stack(pose_matrices).repeat(num_scenes, 1, 1, 1).to(device)
+
+                rays_o_multi, rays_d_multi = get_cam_rays(pose_matrices, intrinsics, h, w)
+
+                rays_o, rays_d, target_rgbs = self.ray_sample(
+                    rays_o_multi, rays_d_multi, imgs_multi, n_inverse_rays_multi, sample_inds=None)
+
+                out_rgbs_multi, loss_consistency, loss_consistency_dict = self.loss(
+                    decoder, code, density_bitfield,
+                    target_rgbs, rays_o, rays_d, dt_gamma, scale_num_ray=num_scene_pixels_multi,
                     cfg=cfg)
 
                 if prior_grad is not None:

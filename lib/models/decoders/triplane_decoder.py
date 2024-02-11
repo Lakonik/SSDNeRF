@@ -92,12 +92,12 @@ class ImagePlanes(torch.nn.Module):
         pixels = pixels.flatten(1)
 
         feats = feats.permute(2, 3, 0, 1).squeeze(0)
-        feats_solo = feats.reshape(num_points, -1)
+        feats = feats.reshape(num_points, -1)
         # print(feats[0].shape) # torch.Size([262144, 96])
         # print(pixels.shape) # torch.Size([262144, 6])
 
         feats = torch.cat((feats, pixels, points), 1)
-        return feats, feats_solo
+        return feats
 
 
 @MODULES.register_module()

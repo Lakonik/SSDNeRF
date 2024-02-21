@@ -128,15 +128,18 @@ class DiffusionNeRF(MultiSceneNeRF):
             prior_grad = [code_.grad.data.clone() for code_ in code_list_]
             cfg = self.train_cfg.copy()
             cfg['n_inverse_steps'] = extra_scene_step
-            code, _, _, loss_decoder, loss_dict_decoder, out_rgbs, target_rgbs = self.inverse_code(
+            code, _, _, loss_decoder, loss_nerf, loss_consistency, loss_nerf_dict, loss_consistency_dict, out_rgbs, target_rgbs = self.inverse_code(
                 decoder, cond_imgs, cond_rays_o, cond_rays_d, dt_gamma=dt_gamma, cfg=cfg,
                 code_=code_list_,
                 density_grid=density_grid,
                 density_bitfield=density_bitfield,
                 code_optimizer=code_optimizers,
                 prior_grad=prior_grad)
-            for k, v in loss_dict_decoder.items():
+            for k, v in loss_nerf_dict.items():
                 log_vars.update({k: float(v)})
+            for k, v in loss_consistency_dict.items():
+                log_vars.update({f"{k}_consistency": float(v)})
+
         else:
             prior_grad = None
 
@@ -175,7 +178,9 @@ class DiffusionNeRF(MultiSceneNeRF):
                 train_psnr = eval_psnr(out_rgbs, target_rgbs)
                 code_rms = code.square().flatten(1).mean().sqrt()
                 log_vars.update(train_psnr=float(train_psnr.mean()),
-                                code_rms=float(code_rms.mean()))
+                                code_rms=float(code_rms.mean()),
+                                # nerf_loss = float()
+                                )
                 if 'test_imgs' in data and data['test_imgs'] is not None:
                     log_vars.update(self.eval_and_viz(
                         data, self.decoder, code, density_bitfield, cfg=self.train_cfg)[0])

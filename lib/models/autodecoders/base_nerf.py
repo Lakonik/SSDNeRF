@@ -479,7 +479,7 @@ class BaseNeRF(nn.Module):
                 inds = raybatch_inds[inverse_step_id % num_raybatch] if raybatch_inds is not None else None
                 rays_o, rays_d, target_rgbs = self.ray_sample(
                     cond_rays_o, cond_rays_d, cond_imgs, n_inverse_rays, sample_inds=inds)
-                out_rgbs, loss, loss_dict = self.loss(
+                out_rgbs, loss_nerf, loss_nerf_dict = self.loss(
                     decoder, code, density_bitfield,
                     target_rgbs, rays_o, rays_d, dt_gamma, scale_num_ray=num_scene_pixels,
                     cfg=cfg)
@@ -529,7 +529,7 @@ class BaseNeRF(nn.Module):
                     else:
                         code_optimizer.zero_grad()
 
-                loss = loss + loss_consistency
+                loss = loss_nerf + loss_consistency
                 loss.backward()
 
                 if isinstance(code_optimizer, list):
@@ -548,13 +548,10 @@ class BaseNeRF(nn.Module):
                 if show_pbar:
                     pbar.update()
 
-            print("LOSS_CONSISTENCY: ", loss_consistency)
-
-
         decoder.train(decoder_training_prev)
 
         return code.detach(), density_grid, density_bitfield, \
-               loss, loss_dict, out_rgbs, target_rgbs
+               loss, loss_nerf, loss_consistency, loss_nerf_dict, loss_consistency_dict, out_rgbs, target_rgbs
 
     def render(self, decoder, code, density_bitfield, h, w, intrinsics, poses, cfg=dict()):
         decoder_training_prev = decoder.training

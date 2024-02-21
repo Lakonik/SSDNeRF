@@ -548,6 +548,9 @@ class BaseNeRF(nn.Module):
                 if show_pbar:
                     pbar.update()
 
+            print("LOSS_CONSISTENCY: ", loss_consistency)
+
+
         decoder.train(decoder_training_prev)
 
         return code.detach(), density_grid, density_bitfield, \

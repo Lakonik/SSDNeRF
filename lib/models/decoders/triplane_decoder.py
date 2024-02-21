@@ -257,7 +257,7 @@ class TriPlaneDecoder(VolumeRenderer):
                                       images=code_single.view(6, 3, code.shape[-2], code.shape[-1]))
 
             image_planes.append(image_plane)
-            point_code_single, _ = image_plane(xyzs_single)
+            point_code_single = image_plane(xyzs_single)
 
 
             # print('!!!!--!!!!')

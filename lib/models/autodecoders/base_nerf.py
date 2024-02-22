@@ -440,6 +440,9 @@ class BaseNeRF(nn.Module):
             if show_pbar:
                 pbar = mmcv.ProgressBar(n_inverse_steps)
 
+            poses = [pose_spherical(theta, phi, -1.3) for phi, theta in fibonacci_sphere(6)]
+            poses = np.stack(poses)
+
             for inverse_step_id in range(n_inverse_steps):
                 code = self.code_activation(
                     torch.stack(code_, dim=0) if isinstance(code_, list)

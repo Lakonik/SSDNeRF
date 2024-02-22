@@ -84,7 +84,7 @@ class ImagePlanes(torch.nn.Module):
             feat = torch.nn.functional.grid_sample(
                 self.image_plane[img].unsqueeze(0),
                 pixels[img].unsqueeze(0).unsqueeze(0),
-                mode='bilinear', padding_mode='zeros', align_corners=False)
+                mode='bilinear', padding_mode='border', align_corners=False)
             feats.append(feat)
 
         feats = torch.stack(feats).squeeze(1)
@@ -96,7 +96,7 @@ class ImagePlanes(torch.nn.Module):
         # print(feats[0].shape) # torch.Size([262144, 96])
         # print(pixels.shape) # torch.Size([262144, 6])
 
-        feats = torch.cat((feats, pixels, points), 1)
+        feats = torch.cat((feats, pixels), 1)
         return feats
 
 

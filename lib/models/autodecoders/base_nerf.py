@@ -19,7 +19,6 @@ from ...core import custom_meshgrid, eval_psnr, eval_ssim_skimage, reduce_mean, 
     module_requires_grad, get_cam_rays
 from lib.ops import morton3D, morton3D_invert, packbits
 from ...core.utils.multiplane_pos import pose_spherical, fibonacci_sphere
-from lib.models.decoders.triplane_decoder import ImagePlanes
 
 LPIPS_BS = 32
 
@@ -263,29 +262,6 @@ class BaseNeRF(nn.Module):
         return rays_o, rays_d, target_rgbs
 
     @staticmethod
-    def ray_sample_consistency(image_plane, poses, n):
-        h, w = 128, 128
-        fxy = torch.Tensor([131.2500, 131.2500, 64.00, 64.00])
-        rays_per_pose = n/len(poses)
-        rays_o_out, rays_d_out, targets = [], [], []
-        for i, pose in enumerate(poses):
-            rays_o, rays_d = get_cam_rays(pose, fxy, h, w)
-            num_scenes, num_imgs, h, w, _ = rays_o.size()
-            rays_o = rays_o.reshape(num_scenes, num_imgs * h * w, 3)
-            rays_d = rays_d.reshape(num_scenes, num_imgs * h * w, 3)
-            ids = torch.randint(0, rays_o.shape[1], rays_per_pose)
-            rays_o = rays_o[ids]
-            rays_d = rays_d[ids]
-            points = [ray_o + ray_d for ray_o, ray_d in zip(rays_o, rays_d)]
-            _, feautures = image_plane(points)
-
-            rays_o_out.append(rays_o)
-            rays_d_out.append(rays_d)
-            targets.append(feautures[:, 3*i:3*i+3])
-        return rays_o_out, rays_d_out, targets
-
-
-    @staticmethod
     def get_raybatch_inds(cond_imgs, n_inverse_rays):
         device = cond_imgs.device
         num_scenes, num_imgs, h, w, _ = cond_imgs.size()
@@ -464,9 +440,6 @@ class BaseNeRF(nn.Module):
             if show_pbar:
                 pbar = mmcv.ProgressBar(n_inverse_steps)
 
-            poses = [pose_spherical(theta, phi, -1.3) for phi, theta in fibonacci_sphere(6)]
-            poses = np.stack(poses)
-
             for inverse_step_id in range(n_inverse_steps):
                 code = self.code_activation(
                     torch.stack(code_, dim=0) if isinstance(code_, list)
@@ -610,9 +583,14 @@ class BaseNeRF(nn.Module):
             h, w = cfg['img_size']
         image, depth = self.render(
             decoder, code, density_bitfield, h, w, test_intrinsics, test_poses, cfg=cfg)
-        pred_imgs = image.permute(0, 1, 4, 2, 3).reshape(
-            num_scenes * num_imgs, 3, h, w).clamp(min=0, max=1)
-        pred_imgs = torch.round(pred_imgs * 255) / 255
+
+        def clamp_image(img, num_images):
+            images = img.permute(0, 1, 4, 2, 3).reshape(
+                num_scenes * num_images, 3, h, w).clamp(min=0, max=1)
+            return torch.round(images * 255) / 255
+
+        pred_imgs = clamp_image(image, num_imgs)
+        # pred_imgs_multi = clamp_image(image_multi, poses.shape[0])
 
         if test_imgs is not None:
             test_psnr = eval_psnr(pred_imgs, target_imgs)

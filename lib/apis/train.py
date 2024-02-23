@@ -63,6 +63,26 @@ def train_model(model,
             'Currently, apex.amp is only supported with DDP training.')
         model = model.cuda()
 
+    #build scheduler
+    from torch.optim.lr_scheduler import LambdaLR
+    import math
+    def custom_lr_scheduler(optimizer, warmup_iterations, total_iterations):
+        def lr_lambda(iteration):
+            if iteration < warmup_iterations:
+                return 0.0
+            elif iteration < total_iterations:
+                cosine_decay = 0.5 * (1 + math.cos(
+                    math.pi * (iteration - warmup_iterations) / (total_iterations - warmup_iterations)))
+                return 0.4 * cosine_decay
+            else:
+                return 0.4
+
+        return LambdaLR(optimizer, lr_lambda)
+
+    beta = torch.tensor(0.0, requires_grad=False)
+    optimizer = torch.optim.SGD([beta], lr=0.5)
+    scheduler = custom_lr_scheduler(optimizer, 50000, 500000)
+
     # build optimizer
     if cfg.optimizer:
         optimizer = build_optimizers(model, cfg.optimizer)
@@ -113,6 +133,7 @@ def train_model(model,
     else:
         runner = IterBasedRunner(
             model,
+            scheduler = scheduler,
             optimizer=optimizer,
             work_dir=cfg.work_dir,
             logger=logger,

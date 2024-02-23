@@ -401,7 +401,7 @@ class BaseNeRF(nn.Module):
                                     density_thresh=density_thresh, decay=1.0)
         return density_grid, density_bitfield
 
-    def inverse_code(self, decoder, cond_imgs, cond_rays_o, cond_rays_d, dt_gamma=0, cfg=dict(),
+    def inverse_code(self, decoder, cond_imgs, cond_rays_o, cond_rays_d, dt_gamma=0, cfg=dict(), scheduler = None,
                      code_=None, density_grid=None, density_bitfield=None, iter_density=None,
                      code_optimizer=None, code_scheduler=None,
                      prior_grad=None, show_pbar=False):
@@ -443,6 +443,7 @@ class BaseNeRF(nn.Module):
             poses = [pose_spherical(theta, phi, -1.3) for phi, theta in fibonacci_sphere(6)]
             poses = np.stack(poses)
 
+            beta = torch.tensor(scheduler.get_lr()[0])
             for inverse_step_id in range(n_inverse_steps):
                 code = self.code_activation(
                     torch.stack(code_, dim=0) if isinstance(code_, list)
@@ -505,7 +506,7 @@ class BaseNeRF(nn.Module):
                     else:
                         code_optimizer.zero_grad()
 
-                loss = loss_nerf + loss_consistency
+                loss = (1-beta) * loss_nerf + beta * loss_consistency
                 loss.backward()
 
                 if isinstance(code_optimizer, list):
@@ -523,6 +524,7 @@ class BaseNeRF(nn.Module):
 
                 if show_pbar:
                     pbar.update()
+            scheduler.step()
 
         decoder.train(decoder_training_prev)
 

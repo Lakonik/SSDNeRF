@@ -81,6 +81,7 @@ def train_model(model,
     optimizer = torch.optim.SGD([beta], lr=1.0)
     scheduler = custom_lr_scheduler(optimizer, 50000, 500000)
 
+    model.scheduler = scheduler
     # build optimizer
     if cfg.optimizer:
         optimizer = build_optimizers(model, cfg.optimizer)

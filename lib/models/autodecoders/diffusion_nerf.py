@@ -63,7 +63,7 @@ class DiffusionNeRF(MultiSceneNeRF):
             code = code.permute([0] + [axis + 1 for axis in self.code_permute_inv])
         return code
 
-    def train_step(self, data, optimizer, scheduler, running_status=None):
+    def train_step(self, data, optimizer, running_status=None):
         diffusion = self.diffusion
         decoder = self.decoder_ema if self.freeze_decoder and self.decoder_use_ema else self.decoder
 
@@ -129,7 +129,7 @@ class DiffusionNeRF(MultiSceneNeRF):
             cfg = self.train_cfg.copy()
             cfg['n_inverse_steps'] = extra_scene_step
             code, _, _, loss_decoder, loss_nerf, loss_consistency, loss_nerf_dict, loss_consistency_dict, out_rgbs, target_rgbs = self.inverse_code(
-                decoder, cond_imgs, cond_rays_o, cond_rays_d, scheduler = scheduler, dt_gamma=dt_gamma, cfg=cfg,
+                decoder, cond_imgs, cond_rays_o, cond_rays_d, dt_gamma=dt_gamma, cfg=cfg,
                 code_=code_list_,
                 density_grid=density_grid,
                 density_bitfield=density_bitfield,

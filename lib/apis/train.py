@@ -69,18 +69,16 @@ def train_model(model,
     def custom_lr_scheduler(optimizer, warmup_iterations, total_iterations):
         def lr_lambda(iteration):
             if iteration < warmup_iterations:
-                return 0.0
+                return 1
             elif iteration < total_iterations:
-                cosine_decay = 0.5 * (1 + math.cos(
-                    math.pi * (iteration - warmup_iterations) / (total_iterations - warmup_iterations)))
-                return 0.4 * cosine_decay
+                cosine_decay = 0.5 * (1 + math.cos(math.pi * (iteration - warmup_iterations) / (total_iterations - warmup_iterations)))
+                return 0.6 + 0.4 * cosine_decay
             else:
-                return 0.4
-
+                return 0.6
         return LambdaLR(optimizer, lr_lambda)
 
     beta = torch.tensor(0.0, requires_grad=False)
-    optimizer = torch.optim.SGD([beta], lr=0.5)
+    optimizer = torch.optim.SGD([beta], lr=1.0)
     scheduler = custom_lr_scheduler(optimizer, 50000, 500000)
 
     # build optimizer

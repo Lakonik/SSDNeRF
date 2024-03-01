@@ -443,7 +443,7 @@ class BaseNeRF(nn.Module):
             poses = [pose_spherical(theta, phi, -1.3) for phi, theta in fibonacci_sphere(6)]
             poses = np.stack(poses)
 
-            beta = torch.tensor(scheduler.get_lr()[0])
+            beta = torch.tensor(scheduler.get_last_lr())
             for inverse_step_id in range(n_inverse_steps):
                 code = self.code_activation(
                     torch.stack(code_, dim=0) if isinstance(code_, list)
@@ -506,7 +506,7 @@ class BaseNeRF(nn.Module):
                     else:
                         code_optimizer.zero_grad()
 
-                loss = (1-beta) * loss_nerf + beta * loss_consistency
+                loss = beta * loss_nerf + (1-beta) * loss_consistency
                 loss.backward()
 
                 if isinstance(code_optimizer, list):

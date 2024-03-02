@@ -447,9 +447,9 @@ class BaseNeRF(nn.Module):
             poses = np.stack(poses)
 
             if self.scheduler is not None:
-                beta = torch.tensor(self.scheduler.get_last_lr())
+                beta = torch.tensor(self.scheduler.get_last_lr()).to(device)
             else:
-                beta = torch.tensor(1.0)
+                beta = torch.tensor(1.0).to(device)
 
             for inverse_step_id in range(n_inverse_steps):
                 code = self.code_activation(

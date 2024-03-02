@@ -79,7 +79,7 @@ def train_model(model,
 
     beta = torch.tensor(0.0, requires_grad=False)
     optimizer = torch.optim.SGD([beta], lr=1.0)
-    scheduler = custom_lr_scheduler(optimizer, 50000, 500000)
+    scheduler = custom_lr_scheduler(optimizer, 0, 500000)
 
     model.scheduler = scheduler
     # build optimizer

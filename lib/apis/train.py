@@ -66,7 +66,7 @@ def train_model(model,
     #build scheduler
     from torch.optim.lr_scheduler import LambdaLR
     import math
-    def custom_lr_scheduler(optimizer, warmup_iterations, total_iterations):
+    def create_consistency_weight_scheduler(optimizer, warmup_iterations, total_iterations):
         def lr_lambda(iteration):
             if iteration < warmup_iterations:
                 return 1
@@ -79,9 +79,9 @@ def train_model(model,
 
     beta = torch.tensor(0.0, requires_grad=False)
     optimizer = torch.optim.SGD([beta], lr=1.0)
-    scheduler = custom_lr_scheduler(optimizer, 0, 500000)
+    consistency_weight_scheduler = create_consistency_weight_scheduler(optimizer, 0, 500000)
+    model.consistency_weight_scheduler = consistency_weight_scheduler
 
-    model.scheduler = scheduler
     # build optimizer
     if cfg.optimizer:
         optimizer = build_optimizers(model, cfg.optimizer)

@@ -513,7 +513,7 @@ class BaseNeRF(nn.Module):
                     else:
                         code_optimizer.zero_grad()
 
-                loss = beta * loss_nerf + (1-beta) * loss_consistency
+                loss = loss_nerf + (1-beta) * loss_consistency
                 loss.backward()
 
                 if isinstance(code_optimizer, list):

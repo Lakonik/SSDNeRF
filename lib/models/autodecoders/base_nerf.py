@@ -466,7 +466,7 @@ class BaseNeRF(nn.Module):
                 out_rgbs, loss_nerf, loss_nerf_dict = self.loss(
                     decoder, code, density_bitfield,
                     target_rgbs, rays_o, rays_d, dt_gamma, scale_num_ray=num_scene_pixels,
-                    cfg=cfg)
+                    cfg=cfg, use_reg_loss=False)
 
                 num_imgs_consistency = 6
                 imgs_consistency = code.reshape(num_scenes, num_imgs_consistency, 3, h, w)

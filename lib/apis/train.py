@@ -212,16 +212,16 @@ def train_model(model,
             iteration += starting_iter
             if iteration < warmup_iterations:
                 return 1
-            elif iteration < total_iterations:
+            if iteration < total_iterations:
                 cosine_decay = 0.5 * (1 + math.cos(math.pi * (iteration - warmup_iterations) / (total_iterations - warmup_iterations)))
-                return 0.6 + 0.4 * cosine_decay
+                return 0.95 + 0.05 * cosine_decay
             else:
-                return 0.6
+                return 0.95
         return LambdaLR(optimizer, lr_lambda)
 
     beta = torch.tensor(0.0, requires_grad=False)
     optimizer = torch.optim.SGD([beta], lr=1.0)
-    consistency_weight_scheduler = create_consistency_weight_scheduler(optimizer, 0, 500000, starting_iter = starting_iter)
+    consistency_weight_scheduler = create_consistency_weight_scheduler(optimizer, 0, 100000, starting_iter = starting_iter)
     model.consistency_weight_scheduler = consistency_weight_scheduler
 
     runner.run(data_loaders, cfg.workflow, cfg.total_iters)

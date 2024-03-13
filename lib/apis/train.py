@@ -222,6 +222,6 @@ def train_model(model,
     beta = torch.tensor(0.0, requires_grad=False)
     optimizer = torch.optim.SGD([beta], lr=1.0)
     consistency_weight_scheduler = create_consistency_weight_scheduler(optimizer, 0, 100000, starting_iter = starting_iter)
-    model.consistency_weight_scheduler = consistency_weight_scheduler
+    runner.model.consistency_weight_scheduler = consistency_weight_scheduler
 
     runner.run(data_loaders, cfg.workflow, cfg.total_iters)

@@ -67,6 +67,29 @@ def train_model(model,
     from torch.optim.lr_scheduler import LambdaLR
     import math
 
+    def create_consistency_weight_scheduler(optimizer, warmup_iterations, total_iterations, starting_iter = 0 ):
+        def lr_lambda(iteration):
+            iteration += starting_iter
+            if iteration < warmup_iterations:
+                return 1
+            elif iteration < total_iterations:
+                cosine_decay = 0.5 * (1 + math.cos(math.pi * (iteration - warmup_iterations) / (total_iterations - warmup_iterations)))
+                return 0.95 + 0.05 * cosine_decay
+            else:
+                return 0.95
+        return LambdaLR(optimizer, lr_lambda)
+
+    starting_iter = 0
+    if cfg.resume_from:
+        checkpoint = torch.load(cfg.resume_from)
+        starting_iter = checkpoint['meta']['iter']
+
+    beta = torch.tensor(0.0, requires_grad=False)
+    cws_optimizer= torch.optim.SGD([beta], lr=1.0)
+    consistency_weight_scheduler = create_consistency_weight_scheduler(cws_optimizer, 0, 100000,
+                                                                       starting_iter=starting_iter)
+    model.consistency_weight_scheduler = consistency_weight_scheduler
+
 
     # build optimizer
     if cfg.optimizer:
@@ -105,31 +128,6 @@ def train_model(model,
         model = MMDataParallel(model, device_ids=cfg.gpu_ids)
 
     # allow users to define the runner
-
-    def create_consistency_weight_scheduler(optimizer, warmup_iterations, total_iterations, starting_iter = 0 ):
-        def lr_lambda(iteration):
-            iteration += starting_iter
-            if iteration < warmup_iterations:
-                return 1
-            if iteration < total_iterations:
-                cosine_decay = 0.5 * (1 + math.cos(math.pi * (iteration - warmup_iterations) / (total_iterations - warmup_iterations)))
-                return 0.95 + 0.05 * cosine_decay
-            else:
-                return 0.95
-        return LambdaLR(optimizer, lr_lambda)
-
-    starting_iter = 0
-    if cfg.resume_from:
-        checkpoint = torch.load(cfg.resume_from)
-        starting_iter = checkpoint['meta']['iter']
-
-    beta = torch.tensor(0.0, requires_grad=False)
-    cws_optimizer= torch.optim.SGD([beta], lr=1.0)
-    consistency_weight_scheduler = create_consistency_weight_scheduler(cws_optimizer, 0, 100000,
-                                                                       starting_iter=starting_iter)
-    model.consistency_weight_scheduler = consistency_weight_scheduler
-
-
     if cfg.get('runner', None):
         runner = build_runner(
             cfg.runner,

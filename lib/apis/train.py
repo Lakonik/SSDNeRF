@@ -124,8 +124,8 @@ def train_model(model,
         starting_iter = checkpoint['meta']['iter']
 
     beta = torch.tensor(0.0, requires_grad=False)
-    optimizer = torch.optim.SGD([beta], lr=1.0)
-    consistency_weight_scheduler = create_consistency_weight_scheduler(optimizer, 0, 100000,
+    cws_optimizer= torch.optim.SGD([beta], lr=1.0)
+    consistency_weight_scheduler = create_consistency_weight_scheduler(cws_optimizer, 0, 100000,
                                                                        starting_iter=starting_iter)
     model.consistency_weight_scheduler = consistency_weight_scheduler
 
@@ -217,9 +217,6 @@ def train_model(model,
 
     if cfg.resume_from:
         runner.resume(cfg.resume_from)
-
-        checkpoint = torch.load(cfg.resume_from)
-        starting_iter = checkpoint['meta']['iter']
 
         if distributed:
             for data_loader in data_loaders:

@@ -67,9 +67,8 @@ def train_model(model,
     from torch.optim.lr_scheduler import LambdaLR
     import math
 
-    def create_consistency_weight_scheduler(optimizer, warmup_iterations, total_iterations, starting_iter = 0 ):
+    def create_consistency_weight_scheduler(optimizer, warmup_iterations, total_iterations):
         def lr_lambda(iteration):
-            iteration += starting_iter
             if iteration < warmup_iterations:
                 return 1
             elif iteration < total_iterations:
@@ -79,18 +78,11 @@ def train_model(model,
                 return 0.95
         return LambdaLR(optimizer, lr_lambda)
 
-    starting_iter = 0
-    if cfg.resume_from:
-        checkpoint = torch.load(cfg.resume_from)
-        starting_iter = checkpoint['meta']['iter']
 
     beta = torch.tensor(0.0, requires_grad=False)
     cws_optimizer= torch.optim.SGD([beta], lr=1.0)
-    consistency_weight_scheduler = create_consistency_weight_scheduler(cws_optimizer, 0, 100000,
-                                                                       starting_iter=starting_iter)
+    consistency_weight_scheduler = create_consistency_weight_scheduler(cws_optimizer, 0, 100000)
     model.consistency_weight_scheduler = consistency_weight_scheduler
-
-
     # build optimizer
     if cfg.optimizer:
         optimizer = build_optimizers(model, cfg.optimizer)

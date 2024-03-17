@@ -63,10 +63,11 @@ model = dict(
     pixel_loss=dict(
         type='MSELoss',
         loss_weight=20.0),  # (0.5 * 2^14) * c_rend (rendering weight constant)
-    reg_loss=dict(
-        type='RegLoss',
-        power=2,
-        loss_weight=3e-3),
+    # reg_loss=dict(
+    #     type='RegLoss',
+    #     power=2,
+    #     loss_weight=3e-3),
+    reg_loss=None,
     cache_size=2458)  # number of training scenes
 
 save_interval = 5000

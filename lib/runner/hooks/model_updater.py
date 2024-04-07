@@ -32,9 +32,7 @@ class ModelUpdaterHook(Hook):
     def set_cfg(self, runner, step_id):
         cfg = self.cfgs[step_id - 1]
         for key, value in cfg.items():
-            print(key)
             rsetattr(runner.model.module, key, value)
-        print()
 
     def before_train_iter(self, runner):
         if not self.by_epoch:

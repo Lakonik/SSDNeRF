@@ -67,7 +67,7 @@ model = dict(
     #     type='RegLoss',
     #     power=2,
     #     loss_weight=3e-3),
-    reg_loss=None,
+    #reg_loss=None,
     cache_size=2458)  # number of training scenes
 
 save_interval = 5000

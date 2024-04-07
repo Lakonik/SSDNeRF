@@ -194,8 +194,7 @@ custom_hooks = [
               {'train_cfg.extra_scene_step': 1,
                'train_cfg.optimizer.lr': 2.5e-3,
                'diffusion.ddpm_loss.freeze_norm': True,
-               'pixel_loss.loss_weight': 10.0,
-               'reg_loss.loss_weight': 1.5e-3}],
+               'pixel_loss.loss_weight': 10.0}],
         by_epoch=False)
 ]
 

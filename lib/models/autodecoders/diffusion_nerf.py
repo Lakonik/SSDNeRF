@@ -73,7 +73,7 @@ class DiffusionNeRF(MultiSceneNeRF):
         if 'optimizer' in self.train_cfg:
             code_list_, code_optimizers, density_grid, density_bitfield = self.load_cache(data)
             print('!!!')
-            print(code_list_)
+            print(len(code_list_))
             code = self.code_activation(torch.stack(code_list_, dim=0), update_stats=True)
         else:
             assert 'code' in data
@@ -171,7 +171,7 @@ class DiffusionNeRF(MultiSceneNeRF):
                 optimizer[key].step()
 
         print('!!aa!')
-        print(code_list_)
+        print(len(code_list_))
 
         if extra_scene_step > 0:
             assert len(code_optimizers) > 0

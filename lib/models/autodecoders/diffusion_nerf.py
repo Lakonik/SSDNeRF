@@ -152,6 +152,11 @@ class DiffusionNeRF(MultiSceneNeRF):
         diff_input = image_multi.reshape(num_scenes, 6, 3, h, w)
         diff_input = diff_input.permute(0, 2, 1, 3, 4)
 
+        import pickle
+
+        with open('diff_input.pickle', 'wb') as handle:
+            pickle.dump(diff_input, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
         with torch.autocast(
                 device_type='cuda',
                 enabled=self.autocast_dtype is not None,

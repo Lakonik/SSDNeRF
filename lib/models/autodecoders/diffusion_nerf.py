@@ -72,6 +72,8 @@ class DiffusionNeRF(MultiSceneNeRF):
 
         if 'optimizer' in self.train_cfg:
             code_list_, code_optimizers, density_grid, density_bitfield = self.load_cache(data)
+            print('!!!')
+            print(code_list_)
             code = self.code_activation(torch.stack(code_list_, dim=0), update_stats=True)
         else:
             assert 'code' in data
@@ -161,12 +163,15 @@ class DiffusionNeRF(MultiSceneNeRF):
                 enabled=self.autocast_dtype is not None,
                 dtype=getattr(torch, self.autocast_dtype) if self.autocast_dtype is not None else None):
             loss_diffusion, log_vars = diffusion(
-                self.code_diff_pr(diff_input.clone()), concat_cond=concat_cond, return_loss=True,
+                self.code_diff_pr(diff_input), concat_cond=concat_cond, return_loss=True,
                 x_t_detach=x_t_detach, cfg=self.train_cfg)
         loss_diffusion.backward()
         for key in optimizer.keys():
             if key.startswith('diffusion'):
                 optimizer[key].step()
+
+        print('!!aa!')
+        print(code_list_)
 
         if extra_scene_step > 0:
             assert len(code_optimizers) > 0

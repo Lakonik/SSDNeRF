@@ -110,7 +110,7 @@ class DiffusionNeRF(MultiSceneNeRF):
                                                 diff_image_size[1] // concat_cond.size(-1)))
 
         x_t_detach = self.train_cfg.get('x_t_detach', False)
-        #
+        #-------
         from lib.core.utils.multiplane_pos import pose_spherical, fibonacci_sphere
         import numpy as np
 
@@ -137,7 +137,7 @@ class DiffusionNeRF(MultiSceneNeRF):
             pose_matrices.append(M)
 
         pose_matrices = torch.stack(pose_matrices).repeat(num_scenes, 1, 1, 1).to(device)
-        h,w = 128,128
+        h, w = 128, 128
         image_multi, depth_multi = self.render(decoder, code, density_bitfield, h, w, intrinsics, pose_matrices, cfg=dict()) #(num_scenes, num_imgs, h, w, 3)
         def clamp_image(img, num_images):
             images = img.permute(0, 1, 4, 2, 3).reshape(
@@ -159,7 +159,7 @@ class DiffusionNeRF(MultiSceneNeRF):
                 enabled=self.autocast_dtype is not None,
                 dtype=getattr(torch, self.autocast_dtype) if self.autocast_dtype is not None else None):
             loss_diffusion, log_vars = diffusion(
-                self.code_diff_pr(diff_input), concat_cond=concat_cond, return_loss=True,
+                self.code_diff_pr(code), concat_cond=concat_cond, return_loss=True,
                 x_t_detach=x_t_detach, cfg=self.train_cfg)
         loss_diffusion.backward()
         for key in optimizer.keys():

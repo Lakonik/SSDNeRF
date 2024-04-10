@@ -154,7 +154,7 @@ class DiffusionNeRF(MultiSceneNeRF):
 
         import pickle
 
-        with open('diff_input.pickle', 'wb') as handle:
+        with open('/data/pwojcik/diff_input.pickle', 'wb') as handle:
             pickle.dump(diff_input, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         with torch.autocast(

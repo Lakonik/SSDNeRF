@@ -110,44 +110,46 @@ class DiffusionNeRF(MultiSceneNeRF):
                                                 diff_image_size[1] // concat_cond.size(-1)))
 
         x_t_detach = self.train_cfg.get('x_t_detach', False)
-        #-------
-        from lib.core.utils.multiplane_pos import pose_spherical, fibonacci_sphere
-        import numpy as np
 
-        poses = [pose_spherical(theta, phi, -1.3) for phi, theta in fibonacci_sphere(6)]
-        poses = np.stack(poses)
-        pose_matrices = []
+        with module_requires_grad(decoder, False):
+            #-------
+            from lib.core.utils.multiplane_pos import pose_spherical, fibonacci_sphere
+            import numpy as np
 
-        device = 'cuda'
+            poses = [pose_spherical(theta, phi, -1.3) for phi, theta in fibonacci_sphere(6)]
+            poses = np.stack(poses)
+            pose_matrices = []
 
-        fxy = torch.Tensor([131.2500, 131.2500, 64.00, 64.00])
-        intrinsics = fxy.repeat(num_scenes, poses.shape[0], 1).to(device)
+            device = 'cuda'
 
-        for i in range(poses.shape[0]):
-            M = poses[i]
-            M = torch.from_numpy(M)
-            M = M @ torch.Tensor([[-1, 0, 0, 0],
-                                  [0, 1, 0, 0],
-                                  [0, 0, 1, 0],
-                                  [0, 0, 0, 1]]).to(M.device)
+            fxy = torch.Tensor([131.2500, 131.2500, 64.00, 64.00])
+            intrinsics = fxy.repeat(num_scenes, poses.shape[0], 1).to(device)
 
-            M = torch.cat(
-                [M[:3, :3], (M[:3, 3:]) / 0.5], dim=-1)
-            # M = torch.inverse(M)
-            pose_matrices.append(M)
+            for i in range(poses.shape[0]):
+                M = poses[i]
+                M = torch.from_numpy(M)
+                M = M @ torch.Tensor([[-1, 0, 0, 0],
+                                    [0, 1, 0, 0],
+                                    [0, 0, 1, 0],
+                                    [0, 0, 0, 1]]).to(M.device)
 
-        pose_matrices = torch.stack(pose_matrices).repeat(num_scenes, 1, 1, 1).to(device)
-        h, w = 128, 128
-        image_multi, depth_multi = self.render(decoder, code, density_bitfield, h, w, intrinsics, pose_matrices, cfg=dict()) #(num_scenes, num_imgs, h, w, 3)
-        def clamp_image(img, num_images):
-            images = img.permute(0, 1, 4, 2, 3).reshape(
-                num_scenes * num_images, 3, h, w).clamp(min=0, max=1)
-            return torch.round(images * 255) / 255
+                M = torch.cat(
+                    [M[:3, :3], (M[:3, 3:]) / 0.5], dim=-1)
+                # M = torch.inverse(M)
+                pose_matrices.append(M)
 
-        image_multi = clamp_image(image_multi, poses.shape[0])
+            pose_matrices = torch.stack(pose_matrices).repeat(num_scenes, 1, 1, 1).to(device)
+            h, w = 128, 128
+            image_multi, depth_multi = self.render(decoder, code, density_bitfield, h, w, intrinsics, pose_matrices, cfg=dict()) #(num_scenes, num_imgs, h, w, 3)
+            def clamp_image(img, num_images):
+                images = img.permute(0, 1, 4, 2, 3).reshape(
+                    num_scenes * num_images, 3, h, w).clamp(min=0, max=1)
+                return torch.round(images * 255) / 255
 
-        diff_input = image_multi.reshape(num_scenes, 6, 3, h, w)
-        diff_input = diff_input.permute(0, 2, 1, 3, 4)
+            image_multi = clamp_image(image_multi, poses.shape[0])
+
+            diff_input = image_multi.reshape(num_scenes, 6, 3, h, w)
+            diff_input = diff_input.permute(0, 2, 1, 3, 4)
 
         import pickle
 

@@ -110,11 +110,8 @@ class DiffusionNeRF(MultiSceneNeRF):
                                                 diff_image_size[1] // concat_cond.size(-1)))
 
         x_t_detach = self.train_cfg.get('x_t_detach', False)
-
-
-
         #
-        from ....lib.core.utils.multiplane_pos import pose_spherical, fibonacci_sphere
+        from lib.core.utils.multiplane_pos import pose_spherical, fibonacci_sphere
         import numpy as np
 
         poses = [pose_spherical(theta, phi, -1.3) for phi, theta in fibonacci_sphere(6)]

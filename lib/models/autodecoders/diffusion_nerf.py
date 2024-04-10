@@ -6,8 +6,8 @@ from torch.nn.parallel.distributed import DistributedDataParallel
 from mmgen.models.builder import MODELS, build_module
 from mmgen.models.architectures.common import get_module_device
 
-from ...core import eval_psnr, rgetattr, module_requires_grad, get_cam_rays
 from .multiscene_nerf import MultiSceneNeRF
+from ... import rgetattr, get_cam_rays, module_requires_grad, eval_psnr
 
 
 @MODELS.register_module()

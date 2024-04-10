@@ -252,6 +252,9 @@ class TriPlaneDecoder(VolumeRenderer):
 
             poses = [pose_spherical(theta, phi, -1.3) for phi, theta in fibonacci_sphere(6)]
 
+            print('!!!')
+            print(code_single.shape)
+
             image_plane = ImagePlanes(focal=torch.Tensor([10.0]),
                                       poses=np.stack(poses),
                                       images=code_single.view(6, 3, code.shape[-2], code.shape[-1]))

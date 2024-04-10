@@ -148,7 +148,7 @@ class DiffusionNeRF(MultiSceneNeRF):
 
             image_multi = clamp_image(image_multi, poses.shape[0])
 
-            diff_input = image_multi.reshape(num_scenes, 6, 3, h, w).view(num_scenes, 3, 6,  h, w)
+            diff_input = image_multi.reshape(num_scenes, 6, 3, h, w).reshape(num_scenes, 3, 6, h, w)
             #diff_input = diff_input.permute(0, 2, 1, 3, 4)
 
         import pickle

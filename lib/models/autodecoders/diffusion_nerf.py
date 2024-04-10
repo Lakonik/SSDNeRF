@@ -72,8 +72,6 @@ class DiffusionNeRF(MultiSceneNeRF):
 
         if 'optimizer' in self.train_cfg:
             code_list_, code_optimizers, density_grid, density_bitfield = self.load_cache(data)
-            print('!!!')
-            print(len(code_list_))
             code = self.code_activation(torch.stack(code_list_, dim=0), update_stats=True)
         else:
             assert 'code' in data
@@ -170,12 +168,10 @@ class DiffusionNeRF(MultiSceneNeRF):
             if key.startswith('diffusion'):
                 optimizer[key].step()
 
-        print('!!aa!')
-        print(len(code_list_))
-
         if extra_scene_step > 0:
             assert len(code_optimizers) > 0
-            prior_grad = [code_.grad.data.clone() for code_ in code_list_]
+            prior_grad = None
+            #prior_grad = [code_.grad.data.clone() for code_ in code_list_]
             cfg = self.train_cfg.copy()
             cfg['n_inverse_steps'] = extra_scene_step
             code, _, _, loss_decoder, loss_nerf, loss_consistency, loss_nerf_dict, loss_consistency_dict, out_rgbs, target_rgbs = self.inverse_code(

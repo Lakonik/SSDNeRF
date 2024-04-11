@@ -158,9 +158,9 @@ class DiffusionNeRF(MultiSceneNeRF):
         rank, ws = get_dist_info()
 
         # only download from the master process
-        if rank == 0:
-            with open('/data/pwojcik/diff_input2.pkl', 'wb') as handle:
-                pickle.dump(diff_input, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        #if rank == 0:
+        #    with open('/data/pwojcik/diff_input2.pkl', 'wb') as handle:
+        #        pickle.dump(diff_input, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         with torch.autocast(
                 device_type='cuda',

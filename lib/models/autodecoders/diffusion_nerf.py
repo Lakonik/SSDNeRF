@@ -149,7 +149,7 @@ class DiffusionNeRF(MultiSceneNeRF):
             image_multi = clamp_image(image_multi, poses.shape[0])
 
             diff_input = image_multi.reshape(num_scenes, 6, 3, h, w)
-            diff_input = diff_input.permute(0, 2, 1, 3, 4)
+            diff_input = diff_input.reshape(num_scenes, 3, 6, h, w)
             #diff_input = diff_input.permute(0, 2, 1, 3, 4)
 
         import pickle
@@ -159,7 +159,7 @@ class DiffusionNeRF(MultiSceneNeRF):
 
         # only download from the master process
         if rank == 0:
-            with open('/data/pwojcik/diff_input.pickle', 'wb') as handle:
+            with open('/data/pwojcik/diff_input2.pkl', 'wb') as handle:
                 pickle.dump(diff_input, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         with torch.autocast(

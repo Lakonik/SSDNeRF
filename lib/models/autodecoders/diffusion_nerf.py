@@ -154,8 +154,13 @@ class DiffusionNeRF(MultiSceneNeRF):
 
         import pickle
 
-        with open('/data/pwojcik/diff_input.pickle', 'wb') as handle:
-            pickle.dump(diff_input, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        from mmcv.runner import get_dist_info
+        rank, ws = get_dist_info()
+
+        # only download from the master process
+        if rank == 0:
+            with open('/data/pwojcik/diff_input.pickle', 'wb') as handle:
+                pickle.dump(diff_input, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         with torch.autocast(
                 device_type='cuda',

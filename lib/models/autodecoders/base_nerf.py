@@ -469,6 +469,8 @@ class BaseNeRF(nn.Module):
                     cfg=cfg, use_reg_loss=False)
 
                 num_imgs_consistency = 6
+                print('!!!')
+                print(code.shape)
                 imgs_consistency = code.reshape(num_scenes, num_imgs_consistency, 3, h, w)
                 imgs_consistency = imgs_consistency.permute(0, 1, 3, 4, 2)
 

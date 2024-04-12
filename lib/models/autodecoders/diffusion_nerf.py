@@ -8,6 +8,7 @@ from mmgen.models.architectures.common import get_module_device
 
 from .multiscene_nerf import MultiSceneNeRF
 from lib.core import eval_psnr, rgetattr, module_requires_grad, get_cam_rays
+from ...core.utils.multiplane_pos import REGULAR_POSES
 
 
 @MODELS.register_module()
@@ -113,10 +114,10 @@ class DiffusionNeRF(MultiSceneNeRF):
 
         with module_requires_grad(decoder, False):
             #-------
-            from lib.core.utils.multiplane_pos import pose_spherical, fibonacci_sphere
+            from lib.core.utils.multiplane_pos import pose_spherical
             import numpy as np
 
-            poses = [pose_spherical(theta, phi, -1.3) for phi, theta in fibonacci_sphere(6)]
+            poses = [pose_spherical(theta, phi, -1.3) for phi, theta in REGULAR_POSES]
             poses = np.stack(poses)
             pose_matrices = []
 

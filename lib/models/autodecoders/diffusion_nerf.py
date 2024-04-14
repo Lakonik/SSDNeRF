@@ -117,7 +117,7 @@ class DiffusionNeRF(MultiSceneNeRF):
             from lib.core.utils.multiplane_pos import pose_spherical
             import numpy as np
 
-            poses = [pose_spherical(theta, phi, 1.3) for phi, theta in REGULAR_POSES]
+            poses = [pose_spherical(theta, phi, -1.3) for phi, theta in REGULAR_POSES]
             poses = np.stack(poses)
             pose_matrices = []
 

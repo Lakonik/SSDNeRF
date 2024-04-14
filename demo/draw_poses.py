@@ -151,7 +151,7 @@ def main():
 
     poses_multiplane = []
     poses_multiplane_flip = []
-    psphere = [pose_spherical(theta, phi, -1.3) for phi, theta in fibonacci_sphere(6)]
+    psphere = [pose_spherical(theta, phi, 1.3) for phi, theta in fibonacci_sphere(6)]
 
     for p in psphere:
         point = [0, 0, 0, 1]

@@ -250,7 +250,7 @@ class TriPlaneDecoder(VolumeRenderer):
             #     mode=self.interp_mode, padding_mode='border', align_corners=False
             # ).squeeze(-2)
 
-            poses = [pose_spherical(theta, phi, -1.3) for phi, theta in REGULAR_POSES]
+            poses = [pose_spherical(theta, phi, 1.3) for phi, theta in REGULAR_POSES]
 
             image_plane = ImagePlanes(focal=torch.Tensor([10.0]),
                                       poses=np.stack(poses),

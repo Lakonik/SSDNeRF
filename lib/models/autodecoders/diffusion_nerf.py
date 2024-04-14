@@ -117,7 +117,7 @@ class DiffusionNeRF(MultiSceneNeRF):
             from lib.core.utils.multiplane_pos import pose_spherical
             import numpy as np
 
-            poses = [pose_spherical(theta, phi, -1.3) for phi, theta in REGULAR_POSES]
+            poses = [pose_spherical(theta, phi, 1.3) for phi, theta in REGULAR_POSES]
             poses = np.stack(poses)
             pose_matrices = []
 
@@ -130,9 +130,9 @@ class DiffusionNeRF(MultiSceneNeRF):
                 M = poses[i]
                 M = torch.from_numpy(M)
                 M = M @ torch.Tensor([[-1, 0, 0, 0],
-                                    [0, 1, 0, 0],
-                                    [0, 0, 1, 0],
-                                    [0, 0, 0, 1]]).to(M.device)
+                                     [0, 1, 0, 0],
+                                     [0, 0, 1, 0],
+                                     [0, 0, 0, 1]]).to(M.device)
 
                 M = torch.cat(
                     [M[:3, :3], (M[:3, 3:]) / 0.5], dim=-1)

@@ -443,7 +443,7 @@ class BaseNeRF(nn.Module):
             if show_pbar:
                 pbar = mmcv.ProgressBar(n_inverse_steps)
 
-            poses = [pose_spherical(theta, phi, -1.3) for phi, theta in REGULAR_POSES]
+            poses = [pose_spherical(theta, phi, 1.3) for phi, theta in REGULAR_POSES]
             poses = np.stack(poses)
 
             if self.consistency_weight_scheduler is not None:

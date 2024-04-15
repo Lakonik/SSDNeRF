@@ -144,8 +144,9 @@ class DiffusionNeRF(MultiSceneNeRF):
             image_multi, depth_multi = self.render(decoder, code, density_bitfield, h, w, intrinsics, pose_matrices, cfg=dict()) #(num_scenes, num_imgs, h, w, 3)
             def clamp_image(img, num_images):
                 images = img.permute(0, 1, 4, 2, 3).reshape(
-                    num_scenes * num_images, 3, h, w).clamp(min=0, max=1)
-                return torch.round(images * 255) / 255
+                    num_scenes * num_images, 3, h, w)#.clamp(min=0, max=1)
+                return images
+                #return torch.round(images * 255) / 255
 
             image_multi = clamp_image(image_multi, poses.shape[0])
 
@@ -159,9 +160,9 @@ class DiffusionNeRF(MultiSceneNeRF):
         rank, ws = get_dist_info()
 
         # only download from the master process
-        #if rank == 0:
-        #    with open('/data/pwojcik/diff_input3.pkl', 'wb') as handle:
-        #        pickle.dump(diff_input, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        if rank == 0:
+            with open('/data/pwojcik/diff_input3.pkl', 'wb') as handle:
+                pickle.dump(diff_input, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         with torch.autocast(
                 device_type='cuda',

@@ -66,6 +66,7 @@ class DiffusionNeRF(MultiSceneNeRF):
     def train_step(self, data, optimizer, running_status=None):
         diffusion = self.diffusion
         decoder = self.decoder_ema if self.freeze_decoder and self.decoder_use_ema else self.decoder
+        decoder_multiplane = self.decoder_multiplane_ema if self.freeze_decoder and self.decoder_multiplane_use_ema else self.decoder_multiplane
 
         num_scenes = len(data['scene_id'])
         extra_scene_step = self.train_cfg.get('extra_scene_step', 0)
@@ -154,6 +155,10 @@ class DiffusionNeRF(MultiSceneNeRF):
                 decoder, code, density_bitfield, cond_rays_o, cond_rays_d,
                 cond_imgs, dt_gamma, cfg=self.train_cfg)
             log_vars.update(log_vars_decoder)
+
+            _, _, _, _ = self.loss_decoder(
+                decoder_m, code, density_bitfield, cond_rays_o, cond_rays_d,
+                cond_imgs, dt_gamma, cfg=self.train_cfg)
 
             if prior_grad is not None:
                 for code_, prior_grad_single in zip(code_list_, prior_grad):

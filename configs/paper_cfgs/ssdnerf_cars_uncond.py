@@ -83,7 +83,7 @@ model = dict(
         loss_weight=3e-3),
     cache_size=2458)  # number of training scenes
 
-save_interval = 5000
+save_interval = 500
 eval_interval = 500
 code_dir = 'cache/' + name + '/code'
 work_dir = 'work_dirs/' + name

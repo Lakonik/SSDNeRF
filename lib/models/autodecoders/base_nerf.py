@@ -109,8 +109,11 @@ class BaseNeRF(nn.Module):
         self.decoder = build_module(decoder)
         self.decoder_multiplane = build_module(decoder_multiplane)
         self.decoder_use_ema = decoder_use_ema
+        self.decoder_multiplane_use_ema = decoder_multiplane_use_ema
         if self.decoder_use_ema:
             self.decoder_ema = deepcopy(self.decoder)
+        if self.decoder_multiplane_use_ema:
+            self.decoder_multiplane_ema = deepcopy(decoder_multiplane)
         self.bg_color = bg_color
         self.pixel_loss = build_module(pixel_loss)
         self.reg_loss = build_module(reg_loss) if reg_loss is not None else None

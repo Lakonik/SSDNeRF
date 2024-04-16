@@ -114,12 +114,55 @@ class DiffusionNeRF(MultiSceneNeRF):
 
         x_t_detach = self.train_cfg.get('x_t_detach', False)
 
+        with module_requires_grad(decoder, False):
+            from lib.core.utils.multiplane_pos import pose_spherical
+            import numpy as np
+
+            poses = [pose_spherical(theta, phi, -1.3) for phi, theta in REGULAR_POSES]
+            poses = np.stack(poses)
+            pose_matrices = []
+
+            device = 'cuda'
+
+            fxy = torch.Tensor([131.2500, 131.2500, 64.00, 64.00])
+            intrinsics = fxy.repeat(num_scenes, poses.shape[0], 1).to(device)
+
+            for i in range(poses.shape[0]):
+                M = poses[i]
+                M = torch.from_numpy(M)
+                M = M @ torch.Tensor([[-1, 0, 0, 0],
+                                      [0, 1, 0, 0],
+                                      [0, 0, 1, 0],
+                                      [0, 0, 0, 1]]).to(M.device)
+
+                M = torch.cat(
+                    [M[:3, :3], (M[:3, 3:]) / 0.5], dim=-1)
+                # M = torch.inverse(M)
+                pose_matrices.append(M)
+
+            pose_matrices = torch.stack(pose_matrices).repeat(num_scenes, 1, 1, 1).to(device)
+            h, w = 128, 128
+            image_multi, depth_multi = self.render(decoder, code, density_bitfield, h, w, intrinsics, pose_matrices,
+                                                   cfg=dict())  # (num_scenes, num_imgs, h, w, 3)
+
+            def clamp_image(img, num_images):
+                images = img.permute(0, 1, 4, 2, 3).reshape(
+                    num_scenes * num_images, 3, h, w)  # .clamp(min=0, max=1)
+                return images
+                # return torch.round(images * 255) / 255
+
+            image_multi = clamp_image(image_multi, poses.shape[0])
+
+            diff_input = image_multi.reshape(num_scenes, 6, 3, h, w)
+            diff_input = diff_input.reshape(num_scenes, 3, 6, h, w)
+            # diff_input = diff_input.permute(0, 2, 1, 3, 4)
+
         with torch.autocast(
                 device_type='cuda',
                 enabled=self.autocast_dtype is not None,
                 dtype=getattr(torch, self.autocast_dtype) if self.autocast_dtype is not None else None):
             loss_diffusion, log_vars = diffusion(
-                self.code_diff_pr(code), concat_cond=concat_cond, return_loss=True,
+                self.code_diff_pr(diff_input), concat_cond=concat_cond, return_loss=True,
                 x_t_detach=x_t_detach, cfg=self.train_cfg)
         loss_diffusion.backward()
         for key in optimizer.keys():

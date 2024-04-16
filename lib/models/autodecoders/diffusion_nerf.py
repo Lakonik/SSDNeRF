@@ -166,6 +166,7 @@ class DiffusionNeRF(MultiSceneNeRF):
                 for code_, prior_grad_single in zip(code_list_, prior_grad):
                     code_.grad.copy_(prior_grad_single)
             loss_decoder.backward()
+            loss_m_decoder.backward()
 
             if 'decoder' in optimizer:
                 optimizer['decoder'].step()

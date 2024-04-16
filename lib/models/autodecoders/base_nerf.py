@@ -85,7 +85,10 @@ class BaseNeRF(nn.Module):
                  grid_size=64,
                  decoder=dict(
                      type='TriPlaneDecoder'),
+                 decoder_multiplane=dict(
+                     type='TriPlaneDecoder'),
                  decoder_use_ema=False,
+                 decoder_multiplane_use_ema=False,
                  bg_color=1,
                  pixel_loss=dict(
                      type='MSELoss'),
@@ -104,6 +107,7 @@ class BaseNeRF(nn.Module):
         self.code_activation = build_module(code_activation)
         self.grid_size = grid_size
         self.decoder = build_module(decoder)
+        self.decoder_multiplane = build_module(decoder_multiplane)
         self.decoder_use_ema = decoder_use_ema
         if self.decoder_use_ema:
             self.decoder_ema = deepcopy(self.decoder)

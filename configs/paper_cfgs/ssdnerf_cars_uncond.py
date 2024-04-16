@@ -72,7 +72,6 @@ model = dict(
         sigmoid_saturation=0.001,
         max_steps=256),
     decoder_multiplane_use_ema=True,
-    freeze_decoder_multiplane=False,
 
     bg_color=1,
     pixel_loss=dict(

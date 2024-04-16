@@ -217,9 +217,6 @@ class MultiPlaneDecoder(VolumeRenderer):
                 code.reshape(num_scenes * 3, n_channels, h, w)
             ).reshape(num_scenes, 3, n_channels, h, w)
 
-
-        print('!!!!')
-
         if self.scene_base is not None:
             code = code + self.scene_base
 

@@ -312,8 +312,6 @@ class BaseNeRF(nn.Module):
             rays_o, rays_d, dt_gamma, return_decoder_loss=True, scale_num_ray=cond_rays_o.shape[1:4].numel(),
             cfg=cfg, **kwargs)
         log_vars = dict()
-        print('!!!')
-        print(loss_dict.keys())
         for key, val in loss_dict.items():
             log_vars.update({key: float(val)})
 

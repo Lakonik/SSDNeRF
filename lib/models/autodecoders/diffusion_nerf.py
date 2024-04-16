@@ -156,15 +156,6 @@ class DiffusionNeRF(MultiSceneNeRF):
 
             diff_input = image_multi.reshape(num_scenes, 6, 3, h, w)
             diff_input = diff_input.reshape(num_scenes, 3, 6, h, w)
-            import pickle
-
-            from mmcv.runner import get_dist_info
-            rank, ws = get_dist_info()
-
-            # only download from the master process
-            if rank == 0:
-                with open('/data/pwojcik/m_input.pkl', 'wb') as handle:
-                    pickle.dump(diff_input, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         with torch.autocast(
                 device_type='cuda',
@@ -258,7 +249,7 @@ class DiffusionNeRF(MultiSceneNeRF):
 
     def val_uncond(self, data, show_pbar=False, **kwargs):
         diffusion = self.diffusion_ema if self.diffusion_use_ema else self.diffusion
-        decoder = self.decoder_ema if self.decoder_use_ema else self.decoder
+        decoder = self.decoder_multiplane_ema if self.freeze_decoder and self.decoder_multiplane_use_ema else self.decoder_multiplane
 
         num_batches = len(data['scene_id'])
         noise = data.get('noise', None)

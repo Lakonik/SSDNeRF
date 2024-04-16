@@ -172,7 +172,8 @@ class DiffusionNeRF(MultiSceneNeRF):
 
         if extra_scene_step > 0:
             assert len(code_optimizers) > 0
-            prior_grad = [code_.grad.data.clone() for code_ in code_list_]
+            prior_grad = None
+            #prior_grad = [code_.grad.data.clone() for code_ in code_list_]
             cfg = self.train_cfg.copy()
             cfg['n_inverse_steps'] = extra_scene_step
             code, _, _, loss_decoder, loss_dict_decoder, out_rgbs, target_rgbs = self.inverse_code(

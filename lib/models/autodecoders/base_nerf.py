@@ -86,7 +86,7 @@ class BaseNeRF(nn.Module):
                  decoder=dict(
                      type='TriPlaneDecoder'),
                  decoder_multiplane=dict(
-                     type='TriPlaneDecoder'),
+                     type='MultiPlanePlaneDecoder'),
                  decoder_use_ema=False,
                  decoder_multiplane_use_ema=False,
                  bg_color=1,

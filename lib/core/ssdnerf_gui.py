@@ -78,6 +78,7 @@ class SSDNeRFGUI:
 
         self.model = model
         self.model_decoder = model.decoder_ema if model.decoder_use_ema else model.decoder
+        self.model_multiplane_decoder = self.decoder_multiplane_ema if self.freeze_decoder and self.decoder_multiplane_use_ema else self.decoder_multiplane
         self.model_diffusion = model.diffusion_ema if model.diffusion_use_ema else model.diffusion
 
         assert cameras is not None
@@ -326,7 +327,7 @@ class SSDNeRFGUI:
                 def callback_save_code(sender, app_data):
                     dir_path = app_data['file_path_name']
                     assert os.path.isdir(dir_path), dir_path + ' is not a directory'
-                    self.model_decoder.visualize(self.code_buffer[None], [self.scene_name], dir_path)
+                    self.model_multiplane_decoder.visualize(self.code_buffer[None], [self.scene_name], dir_path)
 
                 def callback_set_mesh_resolution(sender, app_data):
                     self.mesh_resolution = app_data

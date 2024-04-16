@@ -230,8 +230,8 @@ class DiffusionNeRF(MultiSceneNeRF):
                 train_psnr = eval_psnr(out_rgbs, target_rgbs)
                 train_m_psnr = eval_psnr(out_m_rgbs, target_m_rgbs)
                 code_rms = code.square().flatten(1).mean().sqrt()
-                log_vars.update(train_m_psnr=float(train_psnr.mean()))
-                log_vars.update(train_psnr=float(train_m_psnr.mean()),
+                log_vars.update(train_psnr=float(train_psnr.mean()))
+                log_vars.update(train_m_psnr=float(train_m_psnr.mean()),
                                 code_rms=float(code_rms.mean()))
                 if 'test_imgs' in data and data['test_imgs'] is not None:
                     log_vars.update(self.eval_and_viz(

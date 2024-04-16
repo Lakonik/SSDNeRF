@@ -1,5 +1,5 @@
 import os
-name = 'ssdnerf_cars_uncond'
+name = 'ssdnerf_cars_uncond_test'
 
 DATA_PATH = '/net/tscratch/people/plgmarzol/SSDNeRF_data/shapenet'
 
@@ -83,8 +83,8 @@ model = dict(
         loss_weight=3e-3),
     cache_size=2458)  # number of training scenes
 
-save_interval = 500
-eval_interval = 500
+save_interval = 5000
+eval_interval = 10000
 code_dir = 'cache/' + name + '/code'
 work_dir = 'work_dirs/' + name
 

@@ -143,6 +143,7 @@ class DiffusionNeRF(MultiSceneNeRF):
 
         if 'decoder' in optimizer or len(code_optimizers) > 0:
             print('decoder_multiplane' in optimizer)
+            print('decoder' in optimizer)
 
             if len(code_optimizers) > 0:
                 code = self.code_activation(torch.stack(code_list_, dim=0))

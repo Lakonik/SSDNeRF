@@ -87,6 +87,8 @@ class DiffusionNeRF(MultiSceneNeRF):
             code_optimizer.zero_grad()
         if 'decoder' in optimizer:
             optimizer['decoder'].zero_grad()
+        if 'decoder_multiplane' in optimizer:
+            optimizer['decoder_multiplane'].zero_grad()
 
         concat_cond = None
         if 'cond_imgs' in data:

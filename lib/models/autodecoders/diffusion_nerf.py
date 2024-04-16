@@ -192,6 +192,8 @@ class DiffusionNeRF(MultiSceneNeRF):
         # ==== outputs ====
         if 'decoder' in optimizer or len(code_optimizers) > 0:
             log_vars.update(loss_decoder=float(loss_decoder))
+        if 'decoder_multiplane' in optimizer or len(code_optimizers) > 0:
+            log_vars.update(loss_decoder=float(loss_m_decoder))
         outputs_dict = dict(
             log_vars=log_vars, num_samples=num_scenes)
 

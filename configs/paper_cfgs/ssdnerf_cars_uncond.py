@@ -113,7 +113,8 @@ test_cfg = dict(
 
 optimizer = dict(
     diffusion=dict(type='Adam', lr=1e-4, weight_decay=0.),
-    decoder=dict(type='Adam', lr=1e-3, weight_decay=0.))
+    decoder=dict(type='Adam', lr=1e-3, weight_decay=0.),
+    decoder_multiplane=dict(type='Adam', lr=1e-3, weight_decay=0.),)
 dataset_type = 'ShapeNetSRN'
 data = dict(
     samples_per_gpu=8,

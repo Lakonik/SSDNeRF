@@ -157,7 +157,7 @@ class DiffusionNeRF(MultiSceneNeRF):
             log_vars.update(log_vars_decoder)
 
             _, _, _, _ = self.loss_decoder(
-                decoder_m, code, density_bitfield, cond_rays_o, cond_rays_d,
+                decoder_multiplane, code, density_bitfield, cond_rays_o, cond_rays_d,
                 cond_imgs, dt_gamma, cfg=self.train_cfg)
 
             if prior_grad is not None:

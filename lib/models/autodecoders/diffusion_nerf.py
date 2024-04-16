@@ -169,6 +169,8 @@ class DiffusionNeRF(MultiSceneNeRF):
 
             if 'decoder' in optimizer:
                 optimizer['decoder'].step()
+            if 'decoder_multiplane' in optimizer:
+                optimizer['decoder_multiplane'].step()
             for code_optimizer in code_optimizers:
                 code_optimizer.step()
 

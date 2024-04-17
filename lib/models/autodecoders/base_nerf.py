@@ -302,7 +302,7 @@ class BaseNeRF(nn.Module):
             reg_loss = self.reg_loss(code, **kwargs)
             loss = loss + reg_loss
             loss_dict.update(reg_loss=reg_loss)
-        if not m_pixel and outputs['decoder_reg_loss'] is not None:
+        if return_decoder_loss and not m_pixel and outputs['decoder_reg_loss'] is not None:
             decoder_reg_loss = outputs['decoder_reg_loss']
             loss = loss + decoder_reg_loss
             loss_dict.update(decoder_reg_loss=decoder_reg_loss)

@@ -251,6 +251,9 @@ class DiffusionNeRF(MultiSceneNeRF):
         diffusion = self.diffusion_ema if self.diffusion_use_ema else self.diffusion
         decoder = self.decoder_multiplane_ema if self.freeze_decoder and self.decoder_multiplane_use_ema else self.decoder_multiplane
 
+        print('!!!!')
+        print(self.freeze_decoder)
+
         num_batches = len(data['scene_id'])
         noise = data.get('noise', None)
         if noise is None:

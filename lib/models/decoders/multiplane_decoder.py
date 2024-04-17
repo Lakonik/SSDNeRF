@@ -211,6 +211,7 @@ class MultiPlaneDecoder(VolumeRenderer):
             dirs: Shape (num_scenes, (num_points_per_scene, 3))
             code: Shape (num_scenes, 3, n_channels, h, w)
         """
+        print('!!!')
         num_scenes, _, n_channels, h, w = code.size()
         if self.code_dropout is not None:
             code = self.code_dropout(

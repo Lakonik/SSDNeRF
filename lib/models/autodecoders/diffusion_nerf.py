@@ -115,7 +115,7 @@ class DiffusionNeRF(MultiSceneNeRF):
 
         x_t_detach = self.train_cfg.get('x_t_detach', False)
 
-        with module_requires_grad(decoder, False):
+        with torch.no_grad():
             from lib.core.utils.multiplane_pos import pose_spherical
             import numpy as np
 

@@ -494,7 +494,6 @@ class DiffusionNeRF(MultiSceneNeRF):
 
             # ==== evaluate reconstruction ====
             if 'test_poses' in data:
-                print('dupa')
                 log_vars, pred_imgs = self.eval_and_viz(
                     data, decoder, code, density_bitfield,
                     viz_dir=viz_dir, cfg=self.test_cfg)

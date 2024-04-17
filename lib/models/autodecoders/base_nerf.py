@@ -284,8 +284,8 @@ class BaseNeRF(nn.Module):
         return raybatch_inds, num_raybatch
 
     def loss(self, decoder, code, density_bitfield, target_rgbs,
-             rays_o, rays_d, dt_gamma=0.0, m_pixel=False, scale_num_ray=1.0,
-             cfg=dict(), add_reg_loss=True, **kwargs):
+             rays_o, rays_d, dt_gamma=0.0, return_decoder_loss=False, scale_num_ray=1.0,
+             cfg=dict(), m_pixel=False, **kwargs):
         outputs = decoder(
             rays_o, rays_d, code, density_bitfield, self.grid_size,
             dt_gamma=dt_gamma, perturb=True, return_loss=return_decoder_loss)
@@ -298,7 +298,7 @@ class BaseNeRF(nn.Module):
             pixel_loss = self.pixel_loss(out_rgbs, target_rgbs, **kwargs) * (scale * 3)
         loss = pixel_loss
         loss_dict = dict(pixel_loss=pixel_loss)
-        if self.reg_loss is not None and add_reg_loss:
+        if self.reg_loss is not None and not m_pixel:
             reg_loss = self.reg_loss(code, **kwargs)
             loss = loss + reg_loss
             loss_dict.update(reg_loss=reg_loss)

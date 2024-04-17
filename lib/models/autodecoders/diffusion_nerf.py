@@ -463,7 +463,7 @@ class DiffusionNeRF(MultiSceneNeRF):
         return self.code_activation(code_), density_grid, density_bitfield
 
     def val_step(self, data, viz_dir=None, viz_dir_guide=None, **kwargs):
-        decoder = self.decoder_ema if self.decoder_use_ema else self.decoder
+        decoder = self.decoder_multiplane_ema if self.freeze_decoder and self.decoder_multiplane_use_ema else self.decoder_multiplane
 
         with torch.no_grad():
             if 'code' in data:

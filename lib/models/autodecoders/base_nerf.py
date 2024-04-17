@@ -92,6 +92,8 @@ class BaseNeRF(nn.Module):
                  bg_color=1,
                  pixel_loss=dict(
                      type='MSELoss'),
+                 m_pixel_loss=dict(
+                     type='MSELoss'),
                  reg_loss=None,
                  update_extra_interval=16,
                  use_lpips_metric=True,
@@ -116,6 +118,7 @@ class BaseNeRF(nn.Module):
             self.decoder_multiplane_ema = deepcopy(decoder_multiplane)
         self.bg_color = bg_color
         self.pixel_loss = build_module(pixel_loss)
+        self.m_pixel_loss = build_module(m_pixel_loss)
         self.reg_loss = build_module(reg_loss) if reg_loss is not None else None
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
@@ -281,7 +284,7 @@ class BaseNeRF(nn.Module):
         return raybatch_inds, num_raybatch
 
     def loss(self, decoder, code, density_bitfield, target_rgbs,
-             rays_o, rays_d, dt_gamma=0.0, return_decoder_loss=False, scale_num_ray=1.0,
+             rays_o, rays_d, dt_gamma=0.0, m_pixel=False, scale_num_ray=1.0,
              cfg=dict(), add_reg_loss=True, **kwargs):
         outputs = decoder(
             rays_o, rays_d, code, density_bitfield, self.grid_size,
@@ -289,21 +292,24 @@ class BaseNeRF(nn.Module):
         out_weights = outputs['weights_sum']
         out_rgbs = outputs['image'] + self.bg_color * (1 - out_weights.unsqueeze(-1))
         scale = 1 - math.exp(-cfg['loss_coef'] * scale_num_ray) if 'loss_coef' in cfg else 1
-        pixel_loss = self.pixel_loss(out_rgbs, target_rgbs, **kwargs) * (scale * 3)
+        if m_pixel:
+            pixel_loss = self.m_pixel_loss(out_rgbs, target_rgbs, **kwargs) * (scale * 3)
+        else:
+            pixel_loss = self.pixel_loss(out_rgbs, target_rgbs, **kwargs) * (scale * 3)
         loss = pixel_loss
         loss_dict = dict(pixel_loss=pixel_loss)
         if self.reg_loss is not None and add_reg_loss:
             reg_loss = self.reg_loss(code, **kwargs)
             loss = loss + reg_loss
             loss_dict.update(reg_loss=reg_loss)
-        if return_decoder_loss and outputs['decoder_reg_loss'] is not None:
+        if not m_pixel and outputs['decoder_reg_loss'] is not None:
             decoder_reg_loss = outputs['decoder_reg_loss']
             loss = loss + decoder_reg_loss
             loss_dict.update(decoder_reg_loss=decoder_reg_loss)
         return out_rgbs, loss, loss_dict
 
     def loss_decoder(self, decoder, code, density_bitfield, cond_rays_o, cond_rays_d,
-                     cond_imgs, dt_gamma=0.0, cfg=dict(), add_reg_loss=True, **kwargs):
+                     cond_imgs, dt_gamma=0.0, cfg=dict(), m_pixel=False, **kwargs):
         decoder_training_prev = decoder.training
         decoder.train(True)
         n_decoder_rays = cfg.get('n_decoder_rays', 4096)
@@ -312,7 +318,7 @@ class BaseNeRF(nn.Module):
             cond_rays_o, cond_rays_d, cond_imgs, n_samples=n_decoder_rays)
         out_rgbs, loss, loss_dict = self.loss(
             decoder, code, density_bitfield, target_rgbs,
-            rays_o, rays_d, dt_gamma, add_reg_loss=add_reg_loss, scale_num_ray=cond_rays_o.shape[1:4].numel(),
+            rays_o, rays_d, dt_gamma, m_pixel=m_pixel, scale_num_ray=cond_rays_o.shape[1:4].numel(),
             cfg=cfg, **kwargs)
         log_vars = dict()
         for key, val in loss_dict.items():

@@ -79,7 +79,7 @@ model = dict(
         loss_weight=20.0),
     m_pixel_loss=dict(
         type='MSELoss',
-        loss_weight=20.0), # (0.5 * 2^14) * c_rend (rendering weight constant)
+        loss_weight=25.0), # (0.5 * 2^14) * c_rend (rendering weight constant)
     reg_loss=dict(
         type='RegLoss',
         power=2,
@@ -197,7 +197,7 @@ custom_hooks = [
         step=[0, 2000, 100000, 500000],
         cfgs=[{'m_pixel_loss.loss_weight': 0.0},
               {'train_cfg.extra_scene_step': 3,
-               'm_pixel_loss.loss_weight': 20.0},  # decay schedule of K_in & triplane lr
+               'm_pixel_loss.loss_weight': 25.0},  # decay schedule of K_in & triplane lr
               {'train_cfg.extra_scene_step': 1,
                'diffusion.ddpm_loss.freeze_norm': True},
               {'train_cfg.extra_scene_step': 1,

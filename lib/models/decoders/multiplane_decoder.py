@@ -302,7 +302,6 @@ class MultiPlaneDecoder(VolumeRenderer):
         return sigmas, num_points
 
     def visualize(self, code, scene_name, viz_dir, code_range=[-1, 1]):
-        print('!!!')
         num_scenes, _, num_chn, h, w = code.size()
         code_viz = code.cpu().numpy()
         for code_viz_single, scene_name_single in zip(code_viz, scene_name):

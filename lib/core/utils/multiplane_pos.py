@@ -37,7 +37,7 @@ def fibonacci_sphere(samples=1000):
         x = math.cos(theta) * radius
         z = math.sin(theta) * radius
 
-        if z < 0:
+        if z > 0:
             z = -z
 
         points.append(cart2sph(x, y, z))

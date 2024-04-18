@@ -155,14 +155,14 @@ class DiffusionNeRF(MultiSceneNeRF):
             image_multi = clamp_image(image_multi, poses.shape[0])
 
             diff_input = image_multi.reshape(num_scenes, 12, 3, h, w)
-            diff_input = diff_input.reshape(num_scenes, 3, 12, h, w)[:, :, :6, ...]
+            diff_input = diff_input.reshape(num_scenes, 3, 12, h, w)
 
         with torch.autocast(
                 device_type='cuda',
                 enabled=self.autocast_dtype is not None,
                 dtype=getattr(torch, self.autocast_dtype) if self.autocast_dtype is not None else None):
             loss_diffusion, log_vars = diffusion(
-                self.code_diff_pr(diff_input), concat_cond=concat_cond, return_loss=True,
+                self.code_diff_pr(diff_input[:, :, :6, ...]), concat_cond=concat_cond, return_loss=True,
                 x_t_detach=x_t_detach, cfg=self.train_cfg)
         loss_diffusion.backward()
         for key in optimizer.keys():

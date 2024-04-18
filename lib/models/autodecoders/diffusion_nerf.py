@@ -7,7 +7,7 @@ from mmgen.models.builder import MODELS, build_module
 from mmgen.models.architectures.common import get_module_device
 
 from ...core import eval_psnr, rgetattr, module_requires_grad, get_cam_rays
-from ...core.utils.multiplane_pos import REGULAR_POSES
+from ...core.utils.multiplane_pos import fibonacci_sphere, REGULAR_POSES
 from .multiscene_nerf import MultiSceneNeRF
 
 
@@ -119,7 +119,7 @@ class DiffusionNeRF(MultiSceneNeRF):
             from lib.core.utils.multiplane_pos import pose_spherical
             import numpy as np
 
-            poses = [pose_spherical(theta, phi, -1.3) for phi, theta in REGULAR_POSES]
+            poses = [pose_spherical(theta, phi, -1.3) for phi, theta in fibonacci_sphere(12)]
             poses = np.stack(poses)
             pose_matrices = []
 
@@ -154,8 +154,8 @@ class DiffusionNeRF(MultiSceneNeRF):
 
             image_multi = clamp_image(image_multi, poses.shape[0])
 
-            diff_input = image_multi.reshape(num_scenes, 6, 3, h, w)
-            diff_input = diff_input.reshape(num_scenes, 3, 6, h, w)
+            diff_input = image_multi.reshape(num_scenes, 12, 3, h, w)
+            diff_input = diff_input.reshape(num_scenes, 3, 12, h, w)[:, :, :6, ...]
 
         with torch.autocast(
                 device_type='cuda',

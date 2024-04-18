@@ -1,5 +1,5 @@
 import os
-name = 'ssdnerf_cars_uncond_sm'
+name = 'ssdnerf_cars_uncond_mm'
 
 DATA_PATH = '/data/pwojcik/SSDNeRF/data/shapenet'
 
@@ -62,7 +62,7 @@ model = dict(
     decoder_multiplane=dict(
          type='MultiPlaneDecoder',
          interp_mode='bilinear',
-         base_layers=[6 * 5, 64],
+         base_layers=[12 * 5, 64],
          density_layers=[64, 1],
          color_layers=[64, 3],
          use_dir_enc=True,
@@ -194,10 +194,8 @@ custom_hooks = [
         viz_dir='cache/' + name + '/viz'),
     dict(
         type='ModelUpdaterHook',
-        step=[0, 2000, 100000, 500000],
-        cfgs=[{'m_pixel_loss.loss_weight': 0.0},
-              {'train_cfg.extra_scene_step': 3,
-               'm_pixel_loss.loss_weight': 25.0},  # decay schedule of K_in & triplane lr
+        step=[2000, 100000, 500000],
+        cfgs=[{'train_cfg.extra_scene_step': 3},  # decay schedule of K_in & triplane lr
               {'train_cfg.extra_scene_step': 1,
                'diffusion.ddpm_loss.freeze_norm': True},
               {'train_cfg.extra_scene_step': 1,

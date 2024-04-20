@@ -119,7 +119,7 @@ class DiffusionNeRF(MultiSceneNeRF):
             from lib.core.utils.multiplane_pos import pose_spherical
             import numpy as np
 
-            poses = [pose_spherical(theta, phi, -1.3) for phi, theta in fibonacci_sphere(12)]
+            poses = [pose_spherical(theta, phi, -1.3) for phi, theta in REGULAR_POSES]
             poses = np.stack(poses)
             pose_matrices = []
 
@@ -154,23 +154,23 @@ class DiffusionNeRF(MultiSceneNeRF):
 
             image_multi = clamp_image(image_multi, poses.shape[0])
 
-            diff_input = image_multi.reshape(num_scenes, 12, 3, h, w)
-            diff_input = diff_input.reshape(num_scenes, 3, 12, h, w)
+            diff_input = image_multi.reshape(num_scenes, 6, 3, h, w)
+            diff_input = diff_input.reshape(num_scenes, 3, 6, h, w)
 
-            import pickle
-            from mmcv.runner import get_dist_info
-            rank, ws = get_dist_info()
+            #import pickle
+            #from mmcv.runner import get_dist_info
+            #rank, ws = get_dist_info()
 
-            if rank == 0:
-                with open('/data/pwojcik/diff_input3.pkl', 'wb') as handle:
-                    pickle.dump(diff_input, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            #if rank == 0:
+            #    with open('/data/pwojcik/diff_input3.pkl', 'wb') as handle:
+            #        pickle.dump(diff_input, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         with torch.autocast(
                 device_type='cuda',
                 enabled=self.autocast_dtype is not None,
                 dtype=getattr(torch, self.autocast_dtype) if self.autocast_dtype is not None else None):
             loss_diffusion, log_vars = diffusion(
-                self.code_diff_pr(diff_input[:, :, :6, ...]), concat_cond=concat_cond, return_loss=True,
+                self.code_diff_pr(code), decoder=decoder, planes=diff_input, concat_cond=concat_cond, return_loss=True,
                 x_t_detach=x_t_detach, cfg=self.train_cfg)
         loss_diffusion.backward()
         for key in optimizer.keys():

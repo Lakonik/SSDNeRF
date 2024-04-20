@@ -177,7 +177,7 @@ class GaussianDiffusion(nn.Module):
         std = var_to_tensor(self.sqrt_one_minus_alphas_bar, t.cpu(), tar_shape, device)
         return x_0 * mean + noise * std, mean, std
 
-    def pred_x_0(self, x_t, t, grad_guide_fn=None, concat_cond=None, cfg=dict(), update_denoising_output=False):
+    def pred_x_0(self, x_t, t, grad_guide_fn=None, concat_cond=None, decoder=None, cfg=dict(), update_denoising_output=False):
         clip_denoised = cfg.get('clip_denoised', True)
         clip_range = cfg.get('clip_range', [-1, 1])
         guidance_gain = cfg.get('guidance_gain', 1.0)
@@ -195,7 +195,7 @@ class GaussianDiffusion(nn.Module):
             grad_enabled_prev = torch.is_grad_enabled()
             torch.set_grad_enabled(True)
 
-        denoising_output = self.denoising(x_t, t, concat_cond=concat_cond)
+        denoising_output = self.denoising(x_t, t, decoder=decoder, concat_cond=concat_cond)
 
         if self.denoising_mean_mode.upper() == 'EPS':
             x_0_pred = (x_t - sqrt_one_minus_alpha_bar_t * denoising_output) / sqrt_alpha_bar_t
@@ -420,7 +420,7 @@ class GaussianDiffusion(nn.Module):
         return self.ddpm_loss(loss_kwargs)
 
     def forward_train(self, x_0, concat_cond=None, grad_guide_fn=None, cfg=dict(),
-                      x_t_detach=False, **kwargs):
+                      x_t_detach=False, decoder=None, planes=None, **kwargs):
         device = get_module_device(self)
 
         assert x_0.dim() == 4
@@ -441,7 +441,7 @@ class GaussianDiffusion(nn.Module):
         _, denoising_output = self.pred_x_0(
             x_t, t, grad_guide_fn=grad_guide_fn, concat_cond=concat_cond,
             cfg=cfg, update_denoising_output=True)
-        loss = self.loss(denoising_output, x_0, noise, t, mean, std)
+        loss = self.loss(denoising_output, planes, noise, t, mean, std)
         log_vars = self.ddpm_loss.log_vars
         log_vars.update(loss_ddpm_mse=float(loss))
 
@@ -457,8 +457,8 @@ class GaussianDiffusion(nn.Module):
         assert data.dim() == 4
         return self.sample_from_noise(data, **kwargs)
 
-    def forward(self, data, return_loss=False, **kwargs):
+    def forward(self, data, return_loss=False, decoder=None, **kwargs):
         if return_loss:
-            return self.forward_train(data, **kwargs)
+            return self.forward_train(data, decoder=decoder, planes=None, **kwargs)
 
         return self.forward_test(data, **kwargs)

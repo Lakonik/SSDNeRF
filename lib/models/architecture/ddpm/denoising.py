@@ -188,7 +188,7 @@ class DenoisingUnetMod(DenoisingUnet):
 
         self.init_weights(pretrained)
 
-    def forward(self, x_t, t, label=None, concat_cond=None, return_noise=False):
+    def forward(self, x_t, t, label=None, decoder=None, concat_cond=None, return_noise=False):
         if self.use_rescale_timesteps:
             t = t.float() * (1000.0 / self.num_timesteps)
         embedding = self.time_embedding(t)
@@ -212,5 +212,8 @@ class DenoisingUnetMod(DenoisingUnet):
         for block in self.out_blocks:
             h = block(torch.cat([h, hs.pop()], dim=1), embedding)
         outputs = self.out(h)
+
+        print('!!!')
+        print(outputs.shape)
 
         return outputs
